@@ -1,7 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
 import { Schema } from "effect";
 
-const UpResponseSchema = Schema.Struct({
+export const UpResponseSchema = Schema.Struct({
   status: Schema.Literal("ok"),
   service: Schema.String,
   uptimeSeconds: Schema.Number,

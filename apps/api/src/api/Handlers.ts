@@ -1,17 +1,11 @@
 import { HttpApiBuilder } from "@effect/platform";
-import { Effect, Layer } from "effect";
+import { Layer } from "effect";
 
 import { Api } from "./Api.js";
+import { handleUp } from "../features/health/HealthHandlers.js";
 
 const HealthHandlers = HttpApiBuilder.group(Api, "health", (handlers) =>
-  handlers.handle("up", () =>
-    Effect.succeed({
-      status: "ok" as const,
-      service: "api",
-      uptimeSeconds: process.uptime(),
-      timestamp: new Date().toISOString()
-    })
-  )
+  handlers.handle("up", handleUp)
 );
 
 export const HandlersLive = Layer.mergeAll(HealthHandlers);

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { Schema } from "effect";
 
+import { UpResponseSchema } from "./features/health/HealthApi.js";
 import { createTestServer } from "./server.js";
+
+const decodeUpResponse = Schema.decodeUnknownSync(UpResponseSchema);
 
 describe("up endpoint", () => {
   it("returns up payload", async () => {
@@ -8,12 +12,7 @@ describe("up endpoint", () => {
 
     try {
       const response = await handler(new Request("http://localhost/up"));
-      const body = (await response.json()) as {
-        status: string;
-        service: string;
-        uptimeSeconds: number;
-        timestamp: string;
-      };
+      const body = decodeUpResponse(await response.json());
 
       expect(response.status).toBe(200);
       expect(body.status).toBe("ok");
