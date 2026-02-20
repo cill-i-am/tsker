@@ -5,30 +5,46 @@ import { createTestServer } from "../server.js";
 import { ReadinessError } from "../health/errors.js";
 
 describe("health endpoints", () => {
+  const fixedRequestId = () => "test-request-id";
+
   it("returns liveness payload", async () => {
-    const { handler, dispose } = await createTestServer({ APP_ENV: "local" });
+    const { handler, dispose } = await createTestServer(
+      { APP_ENV: "local" },
+      undefined,
+      fixedRequestId
+    );
 
     try {
       const response = await handler(new Request("http://localhost/health/live"));
-      const body = (await response.json()) as { status: string; service: string };
+      const body = (await response.json()) as {
+        status: string;
+        service: string;
+        requestId: string;
+      };
 
       expect(response.status).toBe(200);
       expect(body.status).toBe("ok");
       expect(body.service).toBe("api");
+      expect(body.requestId).toBe("test-request-id");
     } finally {
       await dispose();
     }
   });
 
   it("returns 200 when readiness checks pass", async () => {
-    const { handler, dispose } = await createTestServer({ APP_ENV: "local" });
+    const { handler, dispose } = await createTestServer(
+      { APP_ENV: "local" },
+      undefined,
+      fixedRequestId
+    );
 
     try {
       const response = await handler(new Request("http://localhost/health/ready"));
-      const body = (await response.json()) as { status: string };
+      const body = (await response.json()) as { status: string; requestId: string };
 
       expect(response.status).toBe(200);
       expect(body.status).toBe("ready");
+      expect(body.requestId).toBe("test-request-id");
     } finally {
       await dispose();
     }
@@ -43,15 +59,17 @@ describe("health endpoints", () => {
           critical: true,
           run: Effect.fail(new ReadinessError({ message: "dependency down" }))
         }
-      ]
+      ],
+      fixedRequestId
     );
 
     try {
       const response = await handler(new Request("http://localhost/health/ready"));
-      const body = (await response.json()) as { status: string };
+      const body = (await response.json()) as { status: string; requestId: string };
 
       expect(response.status).toBe(503);
       expect(body.status).toBe("not_ready");
+      expect(body.requestId).toBe("test-request-id");
     } finally {
       await dispose();
     }
@@ -61,7 +79,7 @@ describe("health endpoints", () => {
     const { handler, dispose } = await createTestServer({
       APP_ENV: "production",
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://collector:4318"
-    });
+    }, undefined, fixedRequestId);
 
     try {
       const response = await handler(new Request("http://localhost/health/ready"));
@@ -70,6 +88,7 @@ describe("health endpoints", () => {
       expect(response.status).toBe(200);
       expect(body.status).toBe("ready");
       expect(body.checks).toBeUndefined();
+      expect(body.requestId).toBe("test-request-id");
     } finally {
       await dispose();
     }
@@ -87,7 +106,8 @@ describe("health endpoints", () => {
           critical: true,
           run: Effect.fail(new ReadinessError({ message: "dependency down" }))
         }
-      ]
+      ],
+      fixedRequestId
     );
 
     try {
@@ -97,6 +117,7 @@ describe("health endpoints", () => {
       expect(response.status).toBe(503);
       expect(body.status).toBe("not_ready");
       expect(body.checks).toBeUndefined();
+      expect(body.requestId).toBe("test-request-id");
     } finally {
       await dispose();
     }

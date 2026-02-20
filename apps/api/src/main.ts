@@ -6,6 +6,4 @@ import { makeServerLayer } from "./server.js";
 
 const config = loadConfig();
 
-NodeRuntime.runMain(
-  Layer.launch(makeServerLayer(config) as unknown as never) as unknown as never
-);
+NodeRuntime.runMain(Layer.launch(makeServerLayer(config)));

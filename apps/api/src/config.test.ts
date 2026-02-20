@@ -28,4 +28,12 @@ describe("loadConfig", () => {
 
     expect(config.otlpEndpoint).toBe("http://collector:4318");
   });
+
+  it("throws when LOG_LEVEL is invalid", () => {
+    expect(() =>
+      loadConfig({
+        LOG_LEVEL: "verbose"
+      })
+    ).toThrow(/LOG_LEVEL must be one of/);
+  });
 });

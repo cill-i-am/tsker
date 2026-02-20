@@ -13,21 +13,14 @@ const normalizeChecks = (checks: ReadonlyArray<ReadinessCheckResult>) =>
     message: check.message ?? null
   }));
 
+export type RequestIdGenerator = () => string;
+
 export const makeHealthHandlers = (
   config: AppConfig,
-  checks: ReadonlyArray<ReadinessCheck>
-) => {
-  type UnsafeHandlers = {
-    handle: (name: string, handler: () => Effect.Effect<unknown>) => UnsafeHandlers;
-  };
-
-  const unsafeGroup = HttpApiBuilder.group as unknown as (
-    api: unknown,
-    groupName: string,
-    build: (handlers: UnsafeHandlers) => UnsafeHandlers
-  ) => unknown;
-
-  return unsafeGroup(Api, "health", (handlers) =>
+  checks: ReadonlyArray<ReadinessCheck>,
+  makeRequestId: RequestIdGenerator = () => crypto.randomUUID()
+) =>
+  HttpApiBuilder.group(Api, "health", (handlers) =>
     handlers
       .handle("live", () =>
         Effect.succeed({
@@ -35,7 +28,7 @@ export const makeHealthHandlers = (
           service: "api",
           uptimeSeconds: process.uptime(),
           timestamp: new Date().toISOString(),
-          requestId: crypto.randomUUID()
+          requestId: makeRequestId()
         })
       )
       .handle("ready", () =>
@@ -48,28 +41,27 @@ export const makeHealthHandlers = (
 
           if (config.appEnv === "production") {
             const status = report.status === "ready" ? 200 : 503;
-            return yield* HttpServerResponse.json(
+            return HttpServerResponse.unsafeJson(
               {
                 status: report.status,
                 timestamp: report.timestamp,
-                requestId: crypto.randomUUID()
+                requestId: makeRequestId()
               },
               { status }
-            ).pipe(Effect.orDie);
+            );
           }
 
           const response = {
             ...report,
             checks: normalizeChecks(report.checks),
-            requestId: crypto.randomUUID()
+            requestId: makeRequestId()
           };
 
           if (report.status === "ready") {
             return response;
           }
 
-          return yield* HttpServerResponse.json(response, { status: 503 }).pipe(Effect.orDie);
+          return HttpServerResponse.unsafeJson(response, { status: 503 });
         })
       )
   );
-};
