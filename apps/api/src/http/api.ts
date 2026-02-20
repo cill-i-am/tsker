@@ -1,6 +1,6 @@
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
 
-import { LiveResponseSchema, ReadyResponseSchema } from "./schemas";
+import { LiveResponseSchema, ReadyResponseSchema } from "./schemas.js";
 
 export const HealthGroup = HttpApiGroup.make("health")
   .add(HttpApiEndpoint.get("live", "/health/live").addSuccess(LiveResponseSchema))

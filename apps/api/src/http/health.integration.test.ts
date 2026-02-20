@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
 
-import { createTestServer } from "../server";
-import { ReadinessError } from "../health/errors";
+import { createTestServer } from "../server.js";
+import { ReadinessError } from "../health/errors.js";
 
 describe("health endpoints", () => {
   it("returns liveness payload", async () => {

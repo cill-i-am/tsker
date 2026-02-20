@@ -1,6 +1,6 @@
 import type { Effect } from "effect/Effect";
 
-import type { ReadinessError } from "./errors";
+import type { ReadinessError } from "./errors.js";
 
 export interface ReadinessCheck {
   readonly name: string;

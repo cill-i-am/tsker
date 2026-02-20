@@ -1,8 +1,8 @@
 import { NodeRuntime } from "@effect/platform-node";
 import { Layer } from "effect";
 
-import { loadConfig } from "./config";
-import { makeServerLayer } from "./server";
+import { loadConfig } from "./config.js";
+import { makeServerLayer } from "./server.js";
 
 const config = loadConfig();
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestServer } from "../server";
+import { createTestServer } from "../server.js";
 
 describe("swagger exposure", () => {
   it("exposes docs in local", async () => {

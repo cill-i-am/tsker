@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
 
-import { makeReadinessReport } from "./service";
-import { ReadinessError } from "./errors";
+import { makeReadinessReport } from "./service.js";
+import { ReadinessError } from "./errors.js";
 
 describe("makeReadinessReport", () => {
   it("returns ready when all checks pass", async () => {

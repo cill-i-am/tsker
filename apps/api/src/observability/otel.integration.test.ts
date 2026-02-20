@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestServer } from "../server";
+import { createTestServer } from "../server.js";
 
 describe("telemetry fail-open", () => {
   it("serves traffic even when OTLP endpoint is unreachable", async () => {

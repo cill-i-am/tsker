@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loadConfig } from "./config";
+import { loadConfig } from "./config.js";
 
 describe("loadConfig", () => {
   it("uses sane defaults", () => {

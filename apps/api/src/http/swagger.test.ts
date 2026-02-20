@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldExposeSwagger } from "./swagger";
+import { shouldExposeSwagger } from "./swagger.js";
 
 describe("shouldExposeSwagger", () => {
   it("exposes docs in local", () => {

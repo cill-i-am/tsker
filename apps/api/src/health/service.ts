@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 
-import type { ReadinessCheck, ReadinessCheckResult, ReadinessReport } from "./check";
-import { ReadinessError } from "./errors";
+import type { ReadinessCheck, ReadinessCheckResult, ReadinessReport } from "./check.js";
+import { ReadinessError } from "./errors.js";
 
 interface MakeReadinessReportInput {
   readonly checks: ReadonlyArray<ReadinessCheck>;

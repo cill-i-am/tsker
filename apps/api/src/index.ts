@@ -1,2 +1,2 @@
-export { loadConfig } from "./config";
-export { makeServerLayer } from "./server";
+export { loadConfig } from "./config.js";
+export { makeServerLayer } from "./server.js";

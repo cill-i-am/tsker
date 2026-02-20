@@ -1,11 +1,11 @@
 import { HttpApiBuilder, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { AppConfig } from "../../config";
-import type { ReadinessCheck } from "../../health/check";
-import type { ReadinessCheckResult } from "../../health/check";
-import { makeReadinessReport } from "../../health/service";
-import { Api } from "../api";
+import type { AppConfig } from "../../config.js";
+import type { ReadinessCheck } from "../../health/check.js";
+import type { ReadinessCheckResult } from "../../health/check.js";
+import { makeReadinessReport } from "../../health/service.js";
+import { Api } from "../api.js";
 
 const normalizeChecks = (checks: ReadonlyArray<ReadinessCheckResult>) =>
   checks.map((check) => ({

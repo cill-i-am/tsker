@@ -2,7 +2,7 @@ import { FetchHttpClient } from "@effect/platform";
 import { Otlp } from "@effect/opentelemetry";
 import { Layer } from "effect";
 
-import type { AppConfig } from "../config";
+import type { AppConfig } from "../config.js";
 
 const parseHeaders = (rawHeaders: string | undefined): Record<string, string> => {
   if (!rawHeaders) {
