@@ -3,30 +3,28 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "description": "Adaptive requirements API built with Effect Platform on Node.js",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
-    "lint": "eslint --max-warnings 0 .",
-    "check-types": "tsc --noEmit",
-    "test": "vitest run"
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "check-types": "pnpm run type-check"
   },
   "dependencies": {
     "effect": "3.19.18",
     "@effect/platform": "0.94.5",
-    "@effect/platform-node": "0.104.1",
-    "@effect/opentelemetry": "0.61.0",
-    "@opentelemetry/exporter-trace-otlp-http": "0.212.0",
-    "@opentelemetry/exporter-metrics-otlp-http": "0.212.0",
-    "@opentelemetry/exporter-logs-otlp-http": "0.212.0"
+    "@effect/platform-node": "0.104.1"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
+    "@effect/language-service": "^0.73.1",
     "@types/node": "^22.15.3",
-    "eslint": "^9.39.1",
     "tsx": "^4.20.6",
     "typescript": "5.9.2",
     "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }
