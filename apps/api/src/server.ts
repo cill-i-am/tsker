@@ -6,42 +6,25 @@ import { createServer } from "node:http";
 import { Api } from "./api/Api.js";
 import { HandlersLive } from "./api/Handlers.js";
 import type { AppConfigType } from "./config/AppConfig.js";
-import { AppConfigService } from "./config/AppConfigService.js";
-import { EnvService } from "./config/EnvService.js";
+import { AppConfigService, makeConfigProvider } from "./config/AppConfigService.js";
 
 const shouldExposeSwagger = (appEnv: AppConfigType["APP_ENV"]): boolean =>
   appEnv === "local" || appEnv === "staging";
 
-const makeEnvLayer = (env: Partial<Record<string, string | undefined>>) =>
-  Layer.succeed(
-    EnvService,
-    EnvService.of({
-      _tag: "EnvService",
-      getAll: (keys: readonly string[]) =>
-        Effect.gen(function* () {
-          const result: Record<string, string> = {};
-          for (const key of keys) {
-            const value = env[key];
-            if (value !== undefined) {
-              result[key] = value;
-            }
-          }
-          return result;
-        })
-    })
-  );
-
 const makeConfigLayer = (env?: Partial<Record<string, string | undefined>>) => {
-  const envLayer = env ? makeEnvLayer(env) : EnvService.Default;
-  return AppConfigService.Default.pipe(Layer.provide(envLayer));
+  if (env) {
+    return Layer.provide(
+      AppConfigService.Default,
+      Layer.setConfigProvider(makeConfigProvider(env))
+    );
+  }
+  return AppConfigService.Default;
 };
 
-const makeApiLayer = (configLayer: ReturnType<typeof makeConfigLayer>) => {
-  const apiLayer = HttpApiBuilder.api(Api).pipe(
-    Layer.provide(HandlersLive),
-    Layer.provide(configLayer)
-  );
+const baseApiLayer = HttpApiBuilder.api(Api).pipe(Layer.provide(HandlersLive));
 
+const makeApiLayer = (configLayer: ReturnType<typeof makeConfigLayer>) => {
+  const apiLayer = Layer.provide(baseApiLayer, configLayer);
   const docsLayer = Layer.unwrapEffect(
     Effect.gen(function* () {
       const config = yield* AppConfigService.get();
@@ -57,18 +40,16 @@ const makeApiLayer = (configLayer: ReturnType<typeof makeConfigLayer>) => {
 
 export const makeServerLayer = (env?: Partial<Record<string, string | undefined>>) => {
   const configLayer = makeConfigLayer(env);
+  const apiLayer = makeApiLayer(configLayer);
+  const serverLayer = Layer.unwrapEffect(
+    Effect.gen(function* () {
+      const config = yield* AppConfigService.get();
+      return NodeHttpServer.layer(createServer, { port: config.PORT });
+    })
+  ).pipe(Layer.provide(configLayer));
 
   return HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
-    Layer.provide(makeApiLayer(configLayer)),
-    Layer.provide(
-      Layer.unwrapEffect(
-        Effect.gen(function* () {
-          const config = yield* AppConfigService.get();
-          return NodeHttpServer.layer(createServer, { port: config.PORT });
-        })
-      ).pipe(Layer.provide(configLayer))
-    ),
-    Layer.provide(configLayer)
+    Layer.provide(Layer.mergeAll(apiLayer, serverLayer))
   );
 };
 
@@ -76,10 +57,7 @@ export const createTestServer = async (env: Partial<Record<string, string | unde
   const configLayer = makeConfigLayer(env);
 
   const { handler, dispose } = HttpApiBuilder.toWebHandler(
-    Layer.mergeAll(
-      makeApiLayer(configLayer),
-      NodeHttpServer.layerContext
-    ).pipe(Layer.provide(configLayer)),
+    Layer.mergeAll(makeApiLayer(configLayer), NodeHttpServer.layerContext),
     {
       middleware: HttpMiddleware.logger
     }

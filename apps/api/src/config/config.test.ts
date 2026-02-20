@@ -1,30 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { Effect, Exit, Layer } from "effect";
 
-import { AppConfigService } from "./AppConfigService.js";
-import { EnvService } from "./EnvService.js";
-
-const makeEnvLayer = (env: Partial<Record<string, string | undefined>>): Layer.Layer<EnvService> =>
-  Layer.succeed(
-    EnvService,
-    EnvService.of({
-      _tag: "EnvService",
-      getAll: (keys: readonly string[]) =>
-        Effect.gen(function* () {
-          const result: Record<string, string> = {};
-          for (const key of keys) {
-            const value = env[key];
-            if (value !== undefined) {
-              result[key] = value;
-            }
-          }
-          return result;
-        })
-    })
-  );
+import { AppConfigService, makeConfigProvider } from "./AppConfigService.js";
 
 const loadConfig = (env: Partial<Record<string, string | undefined>>) =>
-  AppConfigService.get().pipe(Effect.provide(AppConfigService.Default.pipe(Layer.provide(makeEnvLayer(env)))));
+  AppConfigService.get().pipe(
+    Effect.provide(
+      Layer.provide(
+        AppConfigService.Default,
+        Layer.setConfigProvider(makeConfigProvider(env))
+      )
+    )
+  );
 
 describe("AppConfigService", () => {
   it("uses sane defaults", async () => {
