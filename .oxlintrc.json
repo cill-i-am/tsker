@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./node_modules/ultracite/config/oxlint/core/.oxlintrc.json"],
+  "rules": {
+    "import/no-nodejs-modules": "off",
+    "import/no-relative-parent-imports": "off",
+    "jest/prefer-lowercase-title": "off",
+    "jest/require-hook": "off",
+    "require-await": "off",
+    "require-yield": "off",
+    "unicorn/filename-case": "off",
+    "jest/valid-title": "off"
+  }
+}

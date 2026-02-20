@@ -13,8 +13,9 @@ This file is intentionally specific to the current codebase and should be treate
 ## 2. Repo Snapshot (Current Reality)
 
 - Monorepo: Turborepo + pnpm workspaces.
-- Root apps: `apps/api`, `apps/web`, `apps/docs`.
-- Shared packages: `packages/ui`, `packages/eslint-config`, `packages/typescript-config`.
+- Root apps: `apps/api`.
+- Shared packages: `packages/typescript-config`.
+- Linting and formatting: Ultracite with Oxlint + Oxfmt.
 
 ## 3. Instruction Hierarchy
 
@@ -30,8 +31,9 @@ Run from repo root unless noted.
 
 ```bash
 pnpm dev
-pnpm test
+pnpm lint
 pnpm check-types
+pnpm test
 pnpm build
 ```
 

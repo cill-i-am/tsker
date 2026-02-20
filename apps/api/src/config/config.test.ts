@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { Effect, Exit, Layer } from "effect";
 
 import { AppConfigService, makeConfigProvider } from "./AppConfigService.js";
@@ -13,7 +12,7 @@ const loadConfig = (env: Partial<Record<string, string | undefined>>) =>
     )
   );
 
-describe("AppConfigService", () => {
+describe("app config service", () => {
   it("uses sane defaults", async () => {
     const config = await Effect.runPromise(loadConfig({}));
 
@@ -25,7 +24,7 @@ describe("AppConfigService", () => {
   it("allows production without telemetry env", async () => {
     const config = await Effect.runPromise(
       loadConfig({
-        APP_ENV: "production"
+        APP_ENV: "production",
       })
     );
 
@@ -35,20 +34,20 @@ describe("AppConfigService", () => {
   it("fails when LOG_LEVEL is invalid", async () => {
     const exit = await Effect.runPromiseExit(
       loadConfig({
-        LOG_LEVEL: "verbose"
+        LOG_LEVEL: "verbose",
       })
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
   });
 
   it("fails when numeric values are malformed", async () => {
     const exit = await Effect.runPromiseExit(
       loadConfig({
-        PORT: "nope"
+        PORT: "nope",
       })
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
   });
 });

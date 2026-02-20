@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { Schema } from "effect";
 
 import { UpResponseSchema } from "./features/health/HealthApi.js";
@@ -17,8 +16,8 @@ describe("up endpoint", () => {
       expect(response.status).toBe(200);
       expect(body.status).toBe("ok");
       expect(body.service).toBe("api");
-      expect(typeof body.uptimeSeconds).toBe("number");
-      expect(typeof body.timestamp).toBe("string");
+      expectTypeOf(body.uptimeSeconds).toBeNumber();
+      expectTypeOf(body.timestamp).toBeString();
     } finally {
       await dispose();
     }
@@ -39,7 +38,7 @@ describe("swagger exposure", () => {
 
   it("hides docs in production", async () => {
     const { handler, dispose } = await createTestServer({
-      APP_ENV: "production"
+      APP_ENV: "production",
     });
 
     try {

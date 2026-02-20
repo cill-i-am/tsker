@@ -1,12 +1,19 @@
 # tsker
 
-This repository now contains only the API application and shared tooling packages.
+This repository contains the API application and shared TypeScript tooling.
 
 ## Workspace layout
 
 - `apps/api`: Effect-based API service
-- `packages/eslint-config`: shared ESLint configuration
 - `packages/typescript-config`: shared TypeScript configuration
+
+## Code quality
+
+This repository uses Ultracite with the Oxlint provider and Oxfmt for linting and formatting.
+
+- `pnpm lint` - run Ultracite checks
+- `pnpm lint:fix` - apply Ultracite autofixes
+- `pnpm format` - apply Ultracite formatting
 
 ## Commands
 
@@ -14,7 +21,6 @@ From the repository root:
 
 - `pnpm dev` – run development tasks through Turborepo
 - `pnpm build` – build workspace projects
-- `pnpm lint` – run linting tasks
 - `pnpm check-types` – run TypeScript checks
 - `pnpm test` – run test tasks
 

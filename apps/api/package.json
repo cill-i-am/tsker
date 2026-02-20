@@ -1,21 +1,21 @@
 {
   "name": "api",
   "version": "0.1.0",
-  "type": "module",
   "private": true,
   "description": "Adaptive requirements API built with Effect Platform on Node.js",
+  "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "test": "vitest run",
+    "test": "vitest run --globals",
     "type-check": "tsc --noEmit",
     "check-types": "pnpm run type-check"
   },
   "dependencies": {
-    "effect": "3.19.18",
     "@effect/platform": "0.94.5",
-    "@effect/platform-node": "0.104.1"
+    "@effect/platform-node": "0.104.1",
+    "effect": "3.19.18"
   },
   "devDependencies": {
     "@effect/language-service": "^0.73.1",
