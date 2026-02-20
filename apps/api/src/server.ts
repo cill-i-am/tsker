@@ -1,56 +1,87 @@
-import { HttpApiBuilder, HttpApiSwagger } from "@effect/platform";
+import { HttpApiBuilder, HttpApiSwagger, HttpMiddleware } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { createServer } from "node:http";
 
-import type { AppConfig } from "./config.js";
-import { loadConfig } from "./config.js";
-import type { ReadinessCheck } from "./health/check.js";
-import { selfReadinessCheck } from "./health/checks/self.js";
-import { Api } from "./http/api.js";
-import { makeHealthHandlers } from "./http/handlers/health.js";
-import type { RequestIdGenerator } from "./http/handlers/health.js";
-import { requestObservabilityMiddleware } from "./http/middleware/request-observability.js";
-import { shouldExposeSwagger } from "./http/swagger.js";
-import { makeOtelLayer } from "./observability/otel.js";
+import { Api } from "./api/Api.js";
+import { HandlersLive } from "./api/Handlers.js";
+import type { AppConfigType } from "./config/AppConfig.js";
+import { AppConfigService } from "./config/AppConfigService.js";
+import { EnvService } from "./config/EnvService.js";
 
-const defaultChecks: ReadonlyArray<ReadinessCheck> = [selfReadinessCheck];
-const defaultRequestIdGenerator: RequestIdGenerator = () => crypto.randomUUID();
+const shouldExposeSwagger = (appEnv: AppConfigType["APP_ENV"]): boolean =>
+  appEnv === "local" || appEnv === "staging";
 
-const makeApiLayer = (
-  config: AppConfig,
-  checks: ReadonlyArray<ReadinessCheck>,
-  makeRequestId: RequestIdGenerator
-) => {
-  const handlersLayer = makeHealthHandlers(config, checks, makeRequestId);
-  const apiLayer = HttpApiBuilder.api(Api).pipe(Layer.provide(handlersLayer));
-  const docsLayer = shouldExposeSwagger(config.appEnv)
-    ? HttpApiSwagger.layer({ path: "/docs" }).pipe(Layer.provide(apiLayer))
-    : Layer.empty;
-
-  return Layer.mergeAll(apiLayer, docsLayer, makeOtelLayer(config));
-};
-
-export const makeServerLayer = (
-  config: AppConfig,
-  checks: ReadonlyArray<ReadinessCheck> = defaultChecks,
-  makeRequestId: RequestIdGenerator = defaultRequestIdGenerator
-) =>
-  HttpApiBuilder.serve(requestObservabilityMiddleware).pipe(
-    Layer.provide(makeApiLayer(config, checks, makeRequestId)),
-    Layer.provide(NodeHttpServer.layer(createServer, { port: config.port }))
+const makeEnvLayer = (env: Partial<Record<string, string | undefined>>) =>
+  Layer.succeed(
+    EnvService,
+    EnvService.of({
+      _tag: "EnvService",
+      getAll: (keys: readonly string[]) =>
+        Effect.gen(function* () {
+          const result: Record<string, string> = {};
+          for (const key of keys) {
+            const value = env[key];
+            if (value !== undefined) {
+              result[key] = value;
+            }
+          }
+          return result;
+        })
+    })
   );
 
-export const createTestServer = async (
-  env: Partial<Record<string, string | undefined>>,
-  checks: ReadonlyArray<ReadinessCheck> = defaultChecks,
-  makeRequestId: RequestIdGenerator = defaultRequestIdGenerator
-) => {
-  const config = loadConfig(env);
+const makeConfigLayer = (env?: Partial<Record<string, string | undefined>>) => {
+  const envLayer = env ? makeEnvLayer(env) : EnvService.Default;
+  return AppConfigService.Default.pipe(Layer.provide(envLayer));
+};
+
+const makeApiLayer = (configLayer: ReturnType<typeof makeConfigLayer>) => {
+  const apiLayer = HttpApiBuilder.api(Api).pipe(
+    Layer.provide(HandlersLive),
+    Layer.provide(configLayer)
+  );
+
+  const docsLayer = Layer.unwrapEffect(
+    Effect.gen(function* () {
+      const config = yield* AppConfigService.get();
+      if (!shouldExposeSwagger(config.APP_ENV)) {
+        return Layer.empty;
+      }
+      return HttpApiSwagger.layer({ path: "/docs" }).pipe(Layer.provide(apiLayer));
+    })
+  ).pipe(Layer.provide(configLayer));
+
+  return Layer.mergeAll(apiLayer, docsLayer);
+};
+
+export const makeServerLayer = (env?: Partial<Record<string, string | undefined>>) => {
+  const configLayer = makeConfigLayer(env);
+
+  return HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
+    Layer.provide(makeApiLayer(configLayer)),
+    Layer.provide(
+      Layer.unwrapEffect(
+        Effect.gen(function* () {
+          const config = yield* AppConfigService.get();
+          return NodeHttpServer.layer(createServer, { port: config.PORT });
+        })
+      ).pipe(Layer.provide(configLayer))
+    ),
+    Layer.provide(configLayer)
+  );
+};
+
+export const createTestServer = async (env: Partial<Record<string, string | undefined>>) => {
+  const configLayer = makeConfigLayer(env);
+
   const { handler, dispose } = HttpApiBuilder.toWebHandler(
-    Layer.mergeAll(makeApiLayer(config, checks, makeRequestId), NodeHttpServer.layerContext),
+    Layer.mergeAll(
+      makeApiLayer(configLayer),
+      NodeHttpServer.layerContext
+    ).pipe(Layer.provide(configLayer)),
     {
-      middleware: requestObservabilityMiddleware
+      middleware: HttpMiddleware.logger
     }
   );
 
