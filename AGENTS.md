@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Operational guidance for coding agents working in `/Users/cillianbarron/Documents/personal/projects/tsker`.
+Operational guidance for coding agents working in this repository.
 
 This file is intentionally specific to the current codebase and should be treated as a living document.
 

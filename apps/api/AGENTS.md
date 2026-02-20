@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Operational guidance for coding agents working in `/Users/cillianbarron/Documents/personal/projects/tsker/apps/api`.
+Operational guidance for coding agents working in `apps/api`.
 
-Use this file for API-specific implementation details. Read root `/Users/cillianbarron/Documents/personal/projects/tsker/AGENTS.md` first for cross-repo conventions.
+Use this file for API-specific implementation details. Read root `AGENTS.md` first for cross-repo conventions.
 
 ## 1. Scope
 
