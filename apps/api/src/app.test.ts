@@ -16,6 +16,7 @@ const baseEnv = {
 } as const;
 const runDbTests = process.env.RUN_DB_TESTS === "true";
 const trustedOrigin = "http://app.localtest.me:3000";
+const authBaseUrl = baseEnv.BETTER_AUTH_URL;
 const dbSchemaStatements = [
   `create table if not exists "user" (
     "id" text primary key,
@@ -152,7 +153,7 @@ describe("auth routes", () => {
 
     try {
       const response = await handler(
-        new Request("http://localhost/api/auth/get-session", {
+        new Request(`${authBaseUrl}/api/auth/get-session`, {
           headers: {
             origin: trustedOrigin
           }
@@ -173,7 +174,7 @@ describe("auth routes", () => {
 
     try {
       const response = await handler(
-        new Request("http://localhost/api/auth/sign-up/email", {
+        new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -208,7 +209,7 @@ describe("auth routes", () => {
         const password = "password123!";
 
         const signUpResponse = await handler(
-          new Request("http://localhost/api/auth/sign-up/email", {
+          new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
             method: "POST",
             headers: {
               "content-type": "application/json",
@@ -226,16 +227,16 @@ describe("auth routes", () => {
 
         const setCookieHeaders = readSetCookieHeaders(signUpResponse);
         expect(setCookieHeaders.length).toBeGreaterThan(0);
-        expect(setCookieHeaders.some((cookie) => cookie.includes("Domain=.localtest.me"))).toBe(
-          true
-        );
+        expect(
+          setCookieHeaders.some((cookie) => /domain=\.?localtest\.me/i.test(cookie))
+        ).toBe(true);
 
         const cookieHeader = setCookieHeaders
           .map((cookie) => cookie.split(";")[0])
           .join("; ");
 
         const authenticatedSessionResponse = await handler(
-          new Request("http://localhost/api/auth/get-session", {
+          new Request(`${authBaseUrl}/api/auth/get-session`, {
             headers: {
               origin: trustedOrigin,
               cookie: cookieHeader
@@ -254,18 +255,20 @@ describe("auth routes", () => {
         expect(authenticatedSessionBody.user?.email).toBe(email);
 
         const unauthenticatedSessionResponse = await handler(
-          new Request("http://localhost/api/auth/get-session", {
+          new Request(`${authBaseUrl}/api/auth/get-session`, {
             headers: {
               origin: trustedOrigin
             }
           })
         );
-        const unauthenticatedSessionBody = (await unauthenticatedSessionResponse.json()) as {
-          session?: unknown | null;
-        };
+        const unauthenticatedSessionBody = (await unauthenticatedSessionResponse.json()) as
+          | {
+              session?: unknown | null;
+            }
+          | null;
 
         expect(unauthenticatedSessionResponse.status).toBe(200);
-        expect(unauthenticatedSessionBody.session ?? null).toBeNull();
+        expect(unauthenticatedSessionBody?.session ?? null).toBeNull();
       } finally {
         await dispose();
       }

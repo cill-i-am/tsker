@@ -35,17 +35,70 @@ const toAuthError = (cause: unknown) =>
     message: `Auth proxy failed: ${String(cause)}`
   });
 
+const parseTrustedOrigins = (value: string): ReadonlySet<string> => {
+  const origins = value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0)
+    .map((origin) => {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        return origin;
+      }
+    });
+
+  return new Set(origins);
+};
+
+const isMutationMethod = (method: string) => {
+  const normalizedMethod = method.toUpperCase();
+  return (
+    normalizedMethod === "POST" ||
+    normalizedMethod === "PUT" ||
+    normalizedMethod === "PATCH" ||
+    normalizedMethod === "DELETE"
+  );
+};
+
 const makeAuthProxyHandler =
-  (webHandler: (request: Request) => Promise<Response>) =>
+  (
+    webHandler: (request: Request) => Promise<Response>,
+    trustedOrigins: ReadonlySet<string>
+  ) =>
   (request: HttpServerRequest.HttpServerRequest) =>
     Effect.gen(function* () {
-    const webRequest = yield* HttpServerRequest.toWeb(request);
-    const webResponse = yield* Effect.tryPromise({
-      try: () => webHandler(webRequest),
-      catch: toAuthError
-    });
-    return HttpServerResponse.fromWeb(webResponse);
-  }).pipe(
+      const webRequest = yield* HttpServerRequest.toWeb(request);
+      const origin = webRequest.headers.get("origin");
+
+      if (isMutationMethod(webRequest.method) && origin) {
+        const normalizedOrigin = (() => {
+          try {
+            return new URL(origin).origin;
+          } catch {
+            return origin;
+          }
+        })();
+
+        if (!trustedOrigins.has(normalizedOrigin)) {
+          return HttpServerResponse.unsafeJson(
+            {
+              error: "forbidden_origin",
+              message: "Origin is not trusted"
+            },
+            {
+              status: 403
+            }
+          );
+        }
+      }
+
+      const webResponse = yield* Effect.tryPromise({
+        try: () => webHandler(webRequest),
+        catch: toAuthError
+      });
+      return HttpServerResponse.fromWeb(webResponse);
+    }).pipe(
     Effect.catchAll((error) =>
       Effect.succeed(
         HttpServerResponse.unsafeJson(
@@ -65,7 +118,9 @@ const makeAuthRoutesLayer = () =>
   HttpLayerRouter.use((router) =>
     Effect.gen(function* () {
       const auth = yield* AuthService;
-      const handler = makeAuthProxyHandler(auth.webHandler);
+      const config = yield* AppConfigService.get();
+      const trustedOrigins = parseTrustedOrigins(config.AUTH_TRUSTED_ORIGINS);
+      const handler = makeAuthProxyHandler(auth.webHandler, trustedOrigins);
 
       yield* router.add("*", "/api/auth", handler);
       yield* router.add("*", "/api/auth/*", handler);
