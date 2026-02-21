@@ -1,41 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
+import { getForwardedOrigin } from '@/lib/request-origin'
 
 const getApiBaseUrl = () =>
   process.env.VITE_API_URL ||
   import.meta.env.VITE_API_URL ||
   'http://api.localtest.me:3002'
-
-const getForwardedOrigin = (headers: Headers) => {
-  const explicitOrigin = headers.get('origin')
-
-  if (explicitOrigin) {
-    return explicitOrigin
-  }
-
-  const forwardedProto = headers
-    .get('x-forwarded-proto')
-    ?.split(',')[0]
-    ?.trim()
-  const forwardedHost = headers
-    .get('x-forwarded-host')
-    ?.split(',')[0]
-    ?.trim()
-  const host = forwardedHost || headers.get('host')
-
-  if (!host) {
-    return undefined
-  }
-
-  const protocol =
-    forwardedProto ||
-    (host.includes('localhost') || host.includes('127.0.0.1')
-      ? 'http'
-      : 'https')
-
-  return `${protocol}://${host}`
-}
 
 const fetchProtectedSession = createServerFn({ method: 'GET' }).handler(
   async () => {
