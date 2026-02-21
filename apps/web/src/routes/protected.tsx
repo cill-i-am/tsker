@@ -1,55 +1,47 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/react-start'
-import { getRequestHeaders } from '@tanstack/react-start/server'
-import { getForwardedOrigin } from '@/lib/request-origin'
+import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeaders } from "@tanstack/react-start/server";
+
+import { getForwardedOrigin } from "@/lib/request-origin";
 
 const getApiBaseUrl = () =>
-  process.env.VITE_API_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://api.localtest.me:3002'
+  process.env.VITE_API_URL || import.meta.env.VITE_API_URL || "http://api.localtest.me:3002";
 
-const fetchProtectedSession = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const headers = getRequestHeaders()
-    const origin = getForwardedOrigin(headers)
-    const requestHeaders: Record<string, string> = {
-      cookie: headers.get('cookie') ?? '',
-    }
+const fetchProtectedSession = createServerFn({ method: "GET" }).handler(async () => {
+  const headers = getRequestHeaders();
+  const origin = getForwardedOrigin(headers);
+  const requestHeaders: Record<string, string> = {
+    cookie: headers.get("cookie") ?? "",
+  };
 
-    if (origin) {
-      requestHeaders.origin = origin
-    }
+  if (origin) {
+    requestHeaders.origin = origin;
+  }
 
-    const response = await fetch(`${getApiBaseUrl()}/api/auth/get-session`, {
-      headers: requestHeaders,
-      credentials: 'include',
-    })
+  const response = await fetch(`${getApiBaseUrl()}/api/auth/get-session`, {
+    credentials: "include",
+    headers: requestHeaders,
+  });
 
-    const payload = await response.json().catch(() => null)
-    const authenticated = Boolean(payload?.session && payload?.user)
+  const payload = await response.json().catch(() => null);
+  const authenticated = Boolean(payload?.session && payload?.user);
 
-    return {
-      status: response.status,
-      authenticated,
-      payload,
-    }
-  },
-)
+  return {
+    authenticated,
+    payload,
+    status: response.status,
+  };
+});
 
-export const Route = createFileRoute('/protected')({
-  loader: () => fetchProtectedSession(),
-  component: ProtectedPage,
-})
-
-function ProtectedPage() {
-  const data = Route.useLoaderData()
+const ProtectedPage = () => {
+  const data = useLoaderData({ from: "/protected" });
 
   return (
     <main className="mx-auto max-w-3xl p-6 text-white">
       <h2 className="text-2xl font-semibold">Protected Session Check</h2>
       <p className="mt-2 text-gray-300">
-        This route does a server-side call to <code>/api/auth/get-session</code>{' '}
-        while forwarding the incoming cookie header.
+        This route does a server-side call to <code>/api/auth/get-session</code> while forwarding
+        the incoming cookie header.
       </p>
 
       <div className="mt-6 rounded border border-slate-700 bg-slate-900 p-4">
@@ -57,8 +49,7 @@ function ProtectedPage() {
           <strong>Status:</strong> {data.status}
         </p>
         <p>
-          <strong>Authenticated:</strong>{' '}
-          {data.authenticated ? 'yes' : 'no'}
+          <strong>Authenticated:</strong> {data.authenticated ? "yes" : "no"}
         </p>
       </div>
 
@@ -73,5 +64,10 @@ function ProtectedPage() {
         Back Home
       </Link>
     </main>
-  )
-}
+  );
+};
+
+export const Route = createFileRoute("/protected")({
+  component: ProtectedPage,
+  loader: () => fetchProtectedSession(),
+});

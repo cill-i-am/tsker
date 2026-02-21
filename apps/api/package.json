@@ -1,15 +1,15 @@
 {
   "name": "api",
   "version": "0.1.0",
-  "type": "module",
   "private": true,
   "description": "Adaptive requirements API built with Effect Platform on Node.js",
+  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/index.js",
+    "dev": "tsx watch --eval \"import { Effect } from 'effect'; import { runServer } from './src/index.ts'; await Effect.runPromise(runServer);\"",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "start": "tsx --eval \"import { Effect } from 'effect'; import { runServer } from './src/index.ts'; await Effect.runPromise(runServer);\"",
     "test": "vitest run",
-    "lint": "eslint .",
+    "lint": "ultracite check src",
     "type-check": "tsc --noEmit",
     "check-types": "pnpm run type-check"
   },
@@ -24,10 +24,9 @@
   },
   "devDependencies": {
     "@effect/language-service": "^0.73.1",
-    "@repo/eslint-config": "workspace:^",
     "@types/node": "^22.15.3",
     "@types/pg": "^8.15.6",
-    "eslint": "^9.39.1",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.20.6",
     "typescript": "5.9.2",
     "vitest": "^3.2.4"

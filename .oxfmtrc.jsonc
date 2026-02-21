@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "experimentalSortImports": {
+    "ignoreCase": true,
+    "newlinesBetween": true,
+    "order": "asc",
+  },
+  "experimentalTailwindcss": {
+    "stylesheet": "./apps/web/src/styles.css",
+    "attributes": ["class", "className"],
+    "functions": ["clsx", "cn", "cva"],
+    "preserveWhitespace": true,
+  },
+}

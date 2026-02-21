@@ -1,27 +1,23 @@
-import { describe, expect, it } from "vitest";
 import { Effect, Exit, Layer } from "effect";
 
-import { AppConfigService, makeConfigProvider } from "./AppConfigService.js";
+import { AppConfigService, makeConfigProvider } from "@/config/app-config-service.js";
 
 const requiredAuthEnv = {
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/tsker",
+  AUTH_COOKIE_DOMAIN: ".localtest.me",
+  AUTH_TRUSTED_ORIGINS: "https://app.localtest.me",
   BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret!",
   BETTER_AUTH_URL: "https://api.localtest.me",
-  AUTH_TRUSTED_ORIGINS: "https://app.localtest.me",
-  AUTH_COOKIE_DOMAIN: ".localtest.me"
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/tsker",
 } as const;
 
 const loadConfig = (env: Partial<Record<string, string | undefined>>) =>
   AppConfigService.get().pipe(
     Effect.provide(
-      Layer.provide(
-        AppConfigService.Default,
-        Layer.setConfigProvider(makeConfigProvider(env))
-      )
-    )
+      Layer.provide(AppConfigService.Default, Layer.setConfigProvider(makeConfigProvider(env))),
+    ),
   );
 
-describe("AppConfigService", () => {
+describe("app config service", () => {
   it("uses sane defaults", async () => {
     const config = await Effect.runPromise(loadConfig(requiredAuthEnv));
 
@@ -35,7 +31,7 @@ describe("AppConfigService", () => {
       loadConfig({
         ...requiredAuthEnv,
         APP_ENV: "production",
-      })
+      }),
     );
 
     expect(config.APP_ENV).toBe("production");
@@ -45,47 +41,47 @@ describe("AppConfigService", () => {
     const exit = await Effect.runPromiseExit(
       loadConfig({
         ...requiredAuthEnv,
-        LOG_LEVEL: "verbose"
-      })
+        LOG_LEVEL: "verbose",
+      }),
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
   });
 
   it("fails when numeric values are malformed", async () => {
     const exit = await Effect.runPromiseExit(
       loadConfig({
         ...requiredAuthEnv,
-        PORT: "nope"
-      })
+        PORT: "nope",
+      }),
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
   });
 
   it("fails when BETTER_AUTH_SECRET is missing", async () => {
     const exit = await Effect.runPromiseExit(
       loadConfig({
-        DATABASE_URL: requiredAuthEnv.DATABASE_URL,
-        BETTER_AUTH_URL: requiredAuthEnv.BETTER_AUTH_URL,
+        AUTH_COOKIE_DOMAIN: requiredAuthEnv.AUTH_COOKIE_DOMAIN,
         AUTH_TRUSTED_ORIGINS: requiredAuthEnv.AUTH_TRUSTED_ORIGINS,
-        AUTH_COOKIE_DOMAIN: requiredAuthEnv.AUTH_COOKIE_DOMAIN
-      })
+        BETTER_AUTH_URL: requiredAuthEnv.BETTER_AUTH_URL,
+        DATABASE_URL: requiredAuthEnv.DATABASE_URL,
+      }),
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
   });
 
   it("fails when AUTH_TRUSTED_ORIGINS is missing", async () => {
     const exit = await Effect.runPromiseExit(
       loadConfig({
-        DATABASE_URL: requiredAuthEnv.DATABASE_URL,
+        AUTH_COOKIE_DOMAIN: requiredAuthEnv.AUTH_COOKIE_DOMAIN,
         BETTER_AUTH_SECRET: requiredAuthEnv.BETTER_AUTH_SECRET,
         BETTER_AUTH_URL: requiredAuthEnv.BETTER_AUTH_URL,
-        AUTH_COOKIE_DOMAIN: requiredAuthEnv.AUTH_COOKIE_DOMAIN
-      })
+        DATABASE_URL: requiredAuthEnv.DATABASE_URL,
+      }),
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
   });
 });

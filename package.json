@@ -11,17 +11,21 @@
     "db:reset": "docker compose down -v && docker compose up -d postgres",
     "db:studio": "bash ./scripts/db-studio.sh",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "format": "ultracite fix",
+    "fix": "ultracite fix",
     "check-types": "turbo run check-types",
     "test": "turbo run test"
   },
   "devDependencies": {
-    "prettier": "^3.7.4",
+    "@biomejs/biome": "^2.4.0",
+    "oxfmt": "latest",
+    "oxlint": "latest",
     "turbo": "^2.8.10",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "ultracite": "^7.2.3"
   },
-  "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=18"
-  }
+  },
+  "packageManager": "pnpm@9.0.0"
 }

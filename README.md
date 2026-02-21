@@ -8,7 +8,6 @@ shared tooling/data packages.
 - `apps/api`: Effect-based API service
 - `apps/web`: TanStack Start frontend
 - `packages/db`: Postgres + Drizzle + Effect SQL integration
-- `packages/eslint-config`: shared ESLint configuration
 - `packages/typescript-config`: shared TypeScript configuration
 
 ## Commands
@@ -23,6 +22,10 @@ From the repository root:
 - `pnpm db:studio` – start Drizzle Studio for local DB inspection
 - `pnpm build` – build workspace projects
 - `pnpm lint` – run linting tasks
+- `pnpm fix` – run Ultracite auto-fixes
+- `pnpm format` – alias for `pnpm fix`
+- `pnpm exec ultracite check` – run Ultracite checks directly
+- `pnpm exec ultracite doctor` – diagnose Ultracite setup
 - `pnpm check-types` – run TypeScript checks
 - `pnpm test` – run test tasks
 
