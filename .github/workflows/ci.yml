@@ -52,6 +52,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Create test database for auth integration tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          select 'create database tsker_test'
+          where not exists (
+            select from pg_database where datname = 'tsker_test'
+          )\gexec
+          SQL
+
       - name: Lint
         run: pnpm lint
 
