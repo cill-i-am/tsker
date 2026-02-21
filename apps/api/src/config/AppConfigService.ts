@@ -28,12 +28,12 @@ export class AppConfigService extends Effect.Service<AppConfigService>()("AppCon
     yield* Effect.log("Config loaded", {
       port: config.PORT,
       appEnv: config.APP_ENV,
-      logLevel: config.LOG_LEVEL
+      logLevel: config.LOG_LEVEL,
+      authUrl: config.BETTER_AUTH_URL,
+      authCookieDomain: config.AUTH_COOKIE_DOMAIN
     });
 
-    const get = Effect.fn("AppConfigService.get")(function* () {
-      return config;
-    });
+    const get = Effect.fn("AppConfigService.get")(() => Effect.succeed(config));
 
     return { get };
   })

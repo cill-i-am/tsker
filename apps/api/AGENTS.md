@@ -47,7 +47,7 @@ pnpm build
    - handlers layer (`HandlersLive`)
    - optional Swagger docs layer (`/docs` for `local` or `staging`)
    - Node HTTP server layer bound to configured `PORT`
-3. Route definitions live in feature API groups (currently health only).
+3. Route definitions live in feature API groups (`/up`) and Better Auth routes (`/api/auth/*`).
 4. Handler implementations return Effect values and are wired through `HttpApiBuilder.group(...)`.
 
 ### File responsibilities
@@ -58,6 +58,8 @@ pnpm build
 - `src/features/health/HealthHandlers.ts`: endpoint implementations.
 - `src/config/AppConfig.ts`: env schema with defaults.
 - `src/config/AppConfigService.ts`: config loading service and provider helpers.
+- `src/auth/auth.ts`: Better Auth instance construction and adapter wiring.
+- `src/auth/AuthService.ts`: Effect service wrapper around Better Auth handler + session access.
 - `src/errors.ts`: domain/config tagged errors.
 - `src/app.test.ts`: endpoint behavior tests.
 - `src/config/config.test.ts`: config decode tests.
@@ -86,6 +88,12 @@ pnpm build
   - `PORT=3002`
   - `APP_ENV=local`
   - `LOG_LEVEL=info`
+- Required auth/db config:
+  - `DATABASE_URL`
+  - `BETTER_AUTH_SECRET`
+  - `BETTER_AUTH_URL`
+  - `AUTH_TRUSTED_ORIGINS`
+  - `AUTH_COOKIE_DOMAIN`
 - Swagger docs:
   - exposed at `/docs` only for `APP_ENV=local|staging`
   - must return `404` in production

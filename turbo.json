@@ -1,6 +1,16 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "APP_ENV",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "AUTH_TRUSTED_ORIGINS",
+    "AUTH_COOKIE_DOMAIN",
+    "VITE_API_URL",
+    "RUN_DB_TESTS"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
