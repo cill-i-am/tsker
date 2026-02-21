@@ -1,12 +1,15 @@
 import { Effect, Exit, Layer } from "effect";
 
-import { AppConfigService, makeConfigProvider } from "./AppConfigService.js";
+import {
+  AppConfigService as AppConfigServiceLayer,
+  makeConfigProvider,
+} from "./AppConfigService.js";
 
 const loadConfig = (env: Partial<Record<string, string | undefined>>) =>
-  AppConfigService.get().pipe(
+  AppConfigServiceLayer.get().pipe(
     Effect.provide(
       Layer.provide(
-        AppConfigService.Default,
+        AppConfigServiceLayer.Default,
         Layer.setConfigProvider(makeConfigProvider(env))
       )
     )

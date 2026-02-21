@@ -9,7 +9,6 @@
     "require-await": "off",
     "require-yield": "off",
     "unicorn/filename-case": "off",
-    "jest/valid-title": "off",
-    "vitest/prefer-describe-function-title": "off"
+    "jest/valid-title": "off"
   }
 }
