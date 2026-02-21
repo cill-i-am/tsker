@@ -35,18 +35,20 @@ const toAuthError = (cause: unknown) =>
     message: `Auth proxy failed: ${String(cause)}`
   });
 
+const normalizeOrigin = (origin: string): string => {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return origin;
+  }
+};
+
 const parseTrustedOrigins = (value: string): ReadonlySet<string> => {
   const origins = value
     .split(",")
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0)
-    .map((origin) => {
-      try {
-        return new URL(origin).origin;
-      } catch {
-        return origin;
-      }
-    });
+    .map(normalizeOrigin);
 
   return new Set(origins);
 };
@@ -61,6 +63,13 @@ const isMutationMethod = (method: string) => {
   );
 };
 
+const makeCorsHeaders = (origin: string, requestedHeaders: string | null): Record<string, string> => ({
+  "access-control-allow-origin": origin,
+  "access-control-allow-credentials": "true",
+  "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+  "access-control-allow-headers": requestedHeaders ?? "content-type, authorization"
+});
+
 const makeAuthProxyHandler =
   (
     webHandler: (request: Request) => Promise<Response>,
@@ -70,17 +79,36 @@ const makeAuthProxyHandler =
     Effect.gen(function* () {
       const webRequest = yield* HttpServerRequest.toWeb(request);
       const origin = webRequest.headers.get("origin");
+      const normalizedOrigin = origin ? normalizeOrigin(origin) : undefined;
+      const originIsTrusted = normalizedOrigin
+        ? trustedOrigins.has(normalizedOrigin)
+        : false;
+
+      if (webRequest.method.toUpperCase() === "OPTIONS" && normalizedOrigin) {
+        if (!originIsTrusted) {
+          return HttpServerResponse.unsafeJson(
+            {
+              error: "forbidden_origin",
+              message: "Origin is not trusted"
+            },
+            {
+              status: 403
+            }
+          );
+        }
+
+        return HttpServerResponse.empty({ status: 204 }).pipe(
+          HttpServerResponse.setHeaders(
+            makeCorsHeaders(
+              normalizedOrigin,
+              webRequest.headers.get("access-control-request-headers")
+            )
+          )
+        );
+      }
 
       if (isMutationMethod(webRequest.method) && origin) {
-        const normalizedOrigin = (() => {
-          try {
-            return new URL(origin).origin;
-          } catch {
-            return origin;
-          }
-        })();
-
-        if (!trustedOrigins.has(normalizedOrigin)) {
+        if (!originIsTrusted) {
           return HttpServerResponse.unsafeJson(
             {
               error: "forbidden_origin",
@@ -97,7 +125,21 @@ const makeAuthProxyHandler =
         try: () => webHandler(webRequest),
         catch: toAuthError
       });
-      return HttpServerResponse.fromWeb(webResponse);
+
+      const serverResponse = HttpServerResponse.fromWeb(webResponse);
+
+      if (!normalizedOrigin || !originIsTrusted) {
+        return serverResponse;
+      }
+
+      return serverResponse.pipe(
+        HttpServerResponse.setHeaders(
+          makeCorsHeaders(
+            normalizedOrigin,
+            webRequest.headers.get("access-control-request-headers")
+          )
+        )
+      );
     }).pipe(
     Effect.catchAll((error) =>
       Effect.succeed(

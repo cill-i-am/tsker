@@ -72,3 +72,53 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e_web_auth:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/tsker
+      BETTER_AUTH_SECRET: test-secret-test-secret-test-secret!
+      BETTER_AUTH_URL: http://api.localtest.me:3002
+      AUTH_TRUSTED_ORIGINS: http://app.localtest.me:3000
+      AUTH_COOKIE_DOMAIN: .localtest.me
+      VITE_API_URL: http://api.localtest.me:3002
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tsker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run DB migrations
+        run: pnpm --filter @repo/db drizzle:migrate
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run web auth e2e tests
+        run: pnpm --filter web test:e2e

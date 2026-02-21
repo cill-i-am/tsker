@@ -166,6 +166,54 @@ describe("auth routes", () => {
     }
   });
 
+  it("allows CORS preflight for trusted auth origins", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          method: "OPTIONS",
+          headers: {
+            origin: trustedOrigin,
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "content-type"
+          }
+        })
+      );
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(trustedOrigin);
+      expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("rejects CORS preflight for untrusted auth origins", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          method: "OPTIONS",
+          headers: {
+            origin: "http://evil.localtest.me:3000",
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "content-type"
+          }
+        })
+      );
+      const body = (await response.json()) as {
+        error?: string;
+      };
+
+      expect(response.status).toBe(403);
+      expect(body.error).toBe("forbidden_origin");
+    } finally {
+      await dispose();
+    }
+  });
+
   it.skipIf(!runDbTests)("rejects untrusted origins for auth mutations", async () => {
     await setupAuthTables();
     await clearAuthTables();
@@ -191,6 +239,147 @@ describe("auth routes", () => {
       expect(response.status).toBeGreaterThanOrEqual(400);
       expect(response.status).toBeLessThan(500);
       expect(response.status).not.toBe(404);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it.skipIf(!runDbTests)(
+    "rejects untrusted origins for sign-in mutations with forbidden_origin",
+    async () => {
+      await setupAuthTables();
+      await clearAuthTables();
+
+      const { handler, dispose } = await createTestServer(baseEnv);
+
+      try {
+        const response = await handler(
+          new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              origin: "http://evil.localtest.me:3000"
+            },
+            body: JSON.stringify({
+              email: "test@example.com",
+              password: "password123!"
+            })
+          })
+        );
+
+        const body = (await response.json().catch(() => null)) as
+          | {
+              error?: string;
+            }
+          | null;
+
+        expect(response.status).toBe(403);
+        expect(body?.error).toBe("forbidden_origin");
+      } finally {
+        await dispose();
+      }
+    }
+  );
+
+  it.skipIf(!runDbTests)("rejects sign-in for unknown users", async () => {
+    await setupAuthTables();
+    await clearAuthTables();
+
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin
+          },
+          body: JSON.stringify({
+            email: `unknown-${Date.now()}@example.com`,
+            password: "password123!"
+          })
+        })
+      );
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(response.status).not.toBe(404);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it.skipIf(!runDbTests)("rejects malformed sign-in payloads", async () => {
+    await setupAuthTables();
+    await clearAuthTables();
+
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin
+          },
+          body: JSON.stringify({
+            email: "invalid-payload@example.com"
+          })
+        })
+      );
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(response.status).not.toBe(404);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it.skipIf(!runDbTests)("rejects sign-in with wrong password", async () => {
+    await setupAuthTables();
+    await clearAuthTables();
+
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const email = `wrong-password-${Date.now()}@example.com`;
+
+      const signUpResponse = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin
+          },
+          body: JSON.stringify({
+            email,
+            password: "password123!",
+            name: "Wrong Password User"
+          })
+        })
+      );
+      expect(signUpResponse.status).toBeLessThan(400);
+
+      const signInResponse = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin
+          },
+          body: JSON.stringify({
+            email,
+            password: "incorrect-password!"
+          })
+        })
+      );
+
+      expect(signInResponse.status).toBeGreaterThanOrEqual(400);
+      expect(signInResponse.status).toBeLessThan(500);
+      expect(signInResponse.status).not.toBe(404);
     } finally {
       await dispose();
     }
