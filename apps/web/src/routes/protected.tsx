@@ -7,14 +7,50 @@ const getApiBaseUrl = () =>
   import.meta.env.VITE_API_URL ||
   'http://api.localtest.me:3002'
 
+const getForwardedOrigin = (headers: Headers) => {
+  const explicitOrigin = headers.get('origin')
+
+  if (explicitOrigin) {
+    return explicitOrigin
+  }
+
+  const forwardedProto = headers
+    .get('x-forwarded-proto')
+    ?.split(',')[0]
+    ?.trim()
+  const forwardedHost = headers
+    .get('x-forwarded-host')
+    ?.split(',')[0]
+    ?.trim()
+  const host = forwardedHost || headers.get('host')
+
+  if (!host) {
+    return undefined
+  }
+
+  const protocol =
+    forwardedProto ||
+    (host.includes('localhost') || host.includes('127.0.0.1')
+      ? 'http'
+      : 'https')
+
+  return `${protocol}://${host}`
+}
+
 const fetchProtectedSession = createServerFn({ method: 'GET' }).handler(
   async () => {
     const headers = getRequestHeaders()
+    const origin = getForwardedOrigin(headers)
+    const requestHeaders: Record<string, string> = {
+      cookie: headers.get('cookie') ?? '',
+    }
+
+    if (origin) {
+      requestHeaders.origin = origin
+    }
+
     const response = await fetch(`${getApiBaseUrl()}/api/auth/get-session`, {
-      headers: {
-        cookie: headers.get('cookie') ?? '',
-        origin: headers.get('origin') ?? 'http://app.localtest.me:3000',
-      },
+      headers: requestHeaders,
       credentials: 'include',
     })
 
