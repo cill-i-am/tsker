@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/tsker
+      BETTER_AUTH_SECRET: test-secret-test-secret-test-secret!
+      BETTER_AUTH_URL: http://api.localtest.me:3002
+      AUTH_TRUSTED_ORIGINS: http://app.localtest.me:3000
+      AUTH_COOKIE_DOMAIN: .localtest.me
+      VITE_API_URL: http://api.localtest.me:3002
+      RUN_DB_TESTS: "true"
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tsker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create test database for auth integration tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          select 'create database tsker_test'
+          where not exists (
+            select from pg_database where datname = 'tsker_test'
+          )\gexec
+          SQL
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type Check
+        run: pnpm check-types
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
