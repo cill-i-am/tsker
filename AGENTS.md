@@ -62,6 +62,12 @@ pnpm --filter api type-check
 pnpm --filter api build
 ```
 
+Example for Web e2e:
+
+```bash
+pnpm --filter web test:e2e
+```
+
 ## 5. Verification Standard (Before Claiming Done)
 
 - Always run tests + type checks for the project you changed.

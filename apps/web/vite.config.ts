@@ -9,6 +9,12 @@ import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
 
 const config = defineConfig({
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
+  server: {
+    allowedHosts: ['app.localtest.me'],
+  },
   plugins: [
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),
