@@ -121,4 +121,16 @@ test.describe('sign-in flow', () => {
     await expect(page).toHaveURL(/\/protected$/)
     await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
   })
+
+  test('shows protected route as unauthenticated when user is not logged in', async ({
+    page,
+  }) => {
+    await page.goto('/protected')
+
+    await expect(
+      page.getByRole('heading', { name: 'Protected Session Check' }),
+    ).toBeVisible()
+    await expect(page.getByText(/Status:\s*200/)).toBeVisible()
+    await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
+  })
 })
