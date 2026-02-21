@@ -12,7 +12,7 @@ const loadConfig = (env: Partial<Record<string, string | undefined>>) =>
     )
   );
 
-describe("app config service", () => {
+describe("AppConfigService", () => {
   it("uses sane defaults", async () => {
     const config = await Effect.runPromise(loadConfig({}));
 
