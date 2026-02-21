@@ -1,10 +1,13 @@
 # tsker
 
-This repository now contains only the API application and shared tooling packages.
+This repository contains an Effect-based API, a TanStack Start web frontend, and
+shared tooling/data packages.
 
 ## Workspace layout
 
 - `apps/api`: Effect-based API service
+- `apps/web`: TanStack Start frontend
+- `packages/db`: Postgres + Drizzle + Effect SQL integration
 - `packages/eslint-config`: shared ESLint configuration
 - `packages/typescript-config`: shared TypeScript configuration
 
@@ -12,7 +15,12 @@ This repository now contains only the API application and shared tooling package
 
 From the repository root:
 
-- `pnpm dev` – run development tasks through Turborepo
+- `pnpm dev` – one-command local setup:
+  starts Docker Postgres, runs DB migrations, then runs app dev servers
+  with local auth defaults (`*.localtest.me`) if env vars are unset
+- `pnpm dev:apps` – run only app development tasks through Turborepo
+- `pnpm db:up` / `pnpm db:down` / `pnpm db:reset` – manage local Docker Postgres
+- `pnpm db:studio` – start Drizzle Studio for local DB inspection
 - `pnpm build` – build workspace projects
 - `pnpm lint` – run linting tasks
 - `pnpm check-types` – run TypeScript checks
@@ -23,3 +31,11 @@ To run only the API app locally:
 ```sh
 pnpm --filter api dev
 ```
+
+## Database environments
+
+- Local development uses Docker Postgres from `docker-compose.yml`.
+- Production should provide `DATABASE_URL` via environment (for example,
+  PlanetScale Postgres or an equivalent managed PostgreSQL provider).
+- You can override any local defaults by exporting env vars before `pnpm dev`
+  (for example `DATABASE_URL`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`).

@@ -13,8 +13,8 @@ This file is intentionally specific to the current codebase and should be treate
 ## 2. Repo Snapshot (Current Reality)
 
 - Monorepo: Turborepo + pnpm workspaces.
-- Root apps: `apps/api`, `apps/web`, `apps/docs`.
-- Shared packages: `packages/ui`, `packages/eslint-config`, `packages/typescript-config`.
+- Root apps: `apps/api`, `apps/web`.
+- Shared packages: `packages/db`, `packages/eslint-config`, `packages/typescript-config`.
 
 ## 3. Instruction Hierarchy
 
@@ -30,9 +30,19 @@ Run from repo root unless noted.
 
 ```bash
 pnpm dev
+pnpm dev:apps
 pnpm test
 pnpm check-types
 pnpm build
+```
+
+### Local database
+
+```bash
+pnpm db:up
+pnpm db:down
+pnpm db:reset
+pnpm db:studio
 ```
 
 ### Scoped (preferred for focused changes)
