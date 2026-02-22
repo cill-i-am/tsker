@@ -1,40 +1,6 @@
-import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { Link, createFileRoute, useLoaderData } from "@tanstack/react-router";
 
-import { getForwardedOrigin } from "@/lib/request-origin";
-
-const getAuthBaseUrl = () =>
-  process.env.AUTH_URL ||
-  process.env.VITE_AUTH_URL ||
-  import.meta.env.VITE_AUTH_URL ||
-  "http://auth.localtest.me:3003";
-
-const fetchProtectedSession = createServerFn({ method: "GET" }).handler(async () => {
-  const headers = getRequestHeaders();
-  const origin = getForwardedOrigin(headers);
-  const requestHeaders: Record<string, string> = {
-    cookie: headers.get("cookie") ?? "",
-  };
-
-  if (origin) {
-    requestHeaders.origin = origin;
-  }
-
-  const response = await fetch(`${getAuthBaseUrl()}/api/auth/get-session`, {
-    credentials: "include",
-    headers: requestHeaders,
-  });
-
-  const payload = await response.json().catch(() => null);
-  const authenticated = Boolean(payload?.session && payload?.user);
-
-  return {
-    authenticated,
-    payload,
-    status: response.status,
-  };
-});
+import { sessionQueryOptions } from "@/lib/session-query";
 
 const ProtectedPage = () => {
   const data = useLoaderData({ from: "/protected" });
@@ -72,5 +38,5 @@ const ProtectedPage = () => {
 
 export const Route = createFileRoute("/protected")({
   component: ProtectedPage,
-  loader: () => fetchProtectedSession(),
+  loader: ({ context }) => context.queryClient.ensureQueryData(sessionQueryOptions()),
 });

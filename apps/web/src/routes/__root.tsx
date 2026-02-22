@@ -1,10 +1,15 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
+import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import Header from "@/components/header";
 
 import appCss from "@/styles.css?url";
+
+interface RouterContext {
+  queryClient: QueryClient;
+}
 
 const RootDocument = ({ children }: { children: React.ReactNode }) => (
   <html lang="en">
@@ -30,7 +35,7 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
   </html>
 );
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     links: [
       {
