@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
-const webUrl = "http://app.localhost:3000";
-const apiUrl = "http://api.localhost:3002";
+const webUrl = process.env.E2E_WEB_URL ?? "http://app.localtest.me:3000";
+const apiUrl = process.env.E2E_API_URL ?? "http://api.localtest.me:3002";
 
 export default defineConfig({
   fullyParallel: false,

@@ -52,6 +52,9 @@ pnpm --filter web dev
 
 Set `PORTLESS=0` to bypass `portless` and run direct dev commands.
 
+For Playwright e2e, URL targets are controlled separately via `E2E_WEB_URL` and
+`E2E_API_URL` (CI defaults use `*.localtest.me`).
+
 ## Database environments
 
 - Local development uses Docker Postgres from `docker-compose.yml`.
