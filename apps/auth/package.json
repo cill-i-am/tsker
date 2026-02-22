@@ -5,7 +5,7 @@
   "description": "Dedicated Better Auth service built with Hono on Node.js",
   "type": "module",
   "scripts": {
-    "dev": "portless auth.tsker tsx --conditions=development watch ./bin/dev.ts",
+    "dev": "portless auth.tsker tsx watch --conditions=development ./bin/dev.ts",
     "dev:e2e": "tsx --conditions=development ./bin/dev.ts",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node ./bin/start.mjs",
