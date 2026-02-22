@@ -1,4 +1,4 @@
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://api.localtest.me:3002";
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://api.localhost:1355";
 
 const postAuth = async (path: string, body: Record<string, unknown>) => {
   const response = await fetch(`${apiBaseUrl}${path}`, {

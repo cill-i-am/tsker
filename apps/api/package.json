@@ -5,7 +5,8 @@
   "description": "Adaptive requirements API built with Effect Platform on Node.js",
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS=--conditions=development tsx watch ./bin/dev.ts",
+    "dev": "portless api sh -c 'NODE_OPTIONS=--conditions=development tsx watch ./bin/dev.ts'",
+    "dev:direct": "NODE_OPTIONS=--conditions=development tsx watch ./bin/dev.ts",
     "dev:e2e": "NODE_OPTIONS=--conditions=development tsx ./bin/dev.ts",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node ./bin/start.mjs",

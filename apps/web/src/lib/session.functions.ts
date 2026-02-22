@@ -4,7 +4,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { getForwardedOrigin } from "@/lib/request-origin";
 
 const getApiBaseUrl = () =>
-  process.env.VITE_API_URL || import.meta.env.VITE_API_URL || "http://api.localtest.me:3002";
+  process.env.VITE_API_URL || import.meta.env.VITE_API_URL || "http://api.localhost:1355";
 
 export interface ProtectedSessionResponse {
   authenticated: boolean;

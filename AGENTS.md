@@ -15,6 +15,7 @@ This file is intentionally specific to the current codebase and should be treate
 - Monorepo: Turborepo + pnpm workspaces.
 - Root apps: `apps/api`, `apps/web`.
 - Shared packages: `packages/db`, `packages/typescript-config`.
+- Local app dev defaults to `portless` hostnames (`app.localhost:1355`, `api.localhost:1355`).
 
 ## 3. Instruction Hierarchy
 

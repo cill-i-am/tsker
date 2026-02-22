@@ -16,7 +16,7 @@ From the repository root:
 
 - `pnpm dev` – one-command local setup:
   starts Docker Postgres, runs DB migrations, then runs app dev servers
-  with local auth defaults (`*.localtest.me`) if env vars are unset
+  through `portless` with stable URLs if env vars are unset
 - `pnpm dev:apps` – run only app development tasks through Turborepo
 - `pnpm db:up` / `pnpm db:down` / `pnpm db:reset` – manage local Docker Postgres
 - `pnpm db:studio` – start Drizzle Studio for local DB inspection
@@ -33,7 +33,24 @@ To run only the API app locally:
 
 ```sh
 pnpm --filter api dev
+
+# Starts at http://api.localhost:1355
 ```
+
+To run only the Web app locally:
+
+```sh
+pnpm --filter web dev
+
+# Starts at http://app.localhost:1355
+```
+
+## Portless local URLs
+
+- Web: `http://app.localhost:1355`
+- API: `http://api.localhost:1355`
+
+Set `PORTLESS=0` to bypass `portless` and run direct dev commands.
 
 ## Database environments
 

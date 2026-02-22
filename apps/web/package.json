@@ -6,7 +6,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "portless app vite dev",
+    "dev:direct": "vite dev --port 3000",
     "dev:e2e": "vite dev --host 0.0.0.0 --port 3000",
     "e2e:db:migrate": "pnpm --filter @repo/db drizzle:migrate",
     "e2e:start:api": "pnpm run e2e:db:migrate && pnpm --filter api dev:e2e",

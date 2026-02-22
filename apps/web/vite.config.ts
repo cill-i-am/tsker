@@ -7,12 +7,6 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const config = defineConfig({
-  resolve: {
-    dedupe: ['react', 'react-dom'],
-  },
-  server: {
-    allowedHosts: ['app.localtest.me'],
-  },
   plugins: [
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),
@@ -21,6 +15,12 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
+  server: {
+    allowedHosts: ["app.localhost", "app.localtest.me"],
+  },
 });
 
 export default config;

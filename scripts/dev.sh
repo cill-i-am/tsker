@@ -31,14 +31,13 @@ if ! docker compose exec -T postgres pg_isready -U postgres -d tsker >/dev/null 
 fi
 
 export DATABASE_URL="${DATABASE_URL:-postgres://postgres:postgres@localhost:5432/tsker}"
-export PORT="${PORT:-3002}"
 export APP_ENV="${APP_ENV:-local}"
 export LOG_LEVEL="${LOG_LEVEL:-info}"
 export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-local-dev-secret-local-dev-secret-12345}"
-export BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://api.localtest.me:3002}"
-export AUTH_TRUSTED_ORIGINS="${AUTH_TRUSTED_ORIGINS:-http://app.localtest.me:3000}"
-export AUTH_COOKIE_DOMAIN="${AUTH_COOKIE_DOMAIN:-.localtest.me}"
-export VITE_API_URL="${VITE_API_URL:-http://api.localtest.me:3002}"
+export BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://api.localhost:1355}"
+export AUTH_TRUSTED_ORIGINS="${AUTH_TRUSTED_ORIGINS:-http://app.localhost:1355}"
+export AUTH_COOKIE_DOMAIN="${AUTH_COOKIE_DOMAIN:-localhost}"
+export VITE_API_URL="${VITE_API_URL:-http://api.localhost:1355}"
 
 echo "Applying database migrations..."
 pnpm --filter @repo/db drizzle:migrate
