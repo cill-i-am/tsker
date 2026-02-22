@@ -17,7 +17,7 @@ From the repository root:
 
 - `pnpm dev` – one-command local setup:
   starts Docker Postgres, runs DB migrations, then runs app dev servers
-  with local auth defaults (`*.localtest.me`) if env vars are unset
+  through Portless with stable `*.localhost` hostnames
 - `pnpm dev:apps` – run only app development tasks through Turborepo
 - `pnpm db:up` / `pnpm db:down` / `pnpm db:reset` – manage local Docker Postgres
 - `pnpm db:studio` – start Drizzle Studio for local DB inspection
@@ -36,11 +36,20 @@ To run only the API app locally:
 pnpm --filter api dev
 ```
 
+Default Portless dev URLs:
+
+- Web: `http://app.tsker.localhost:1355`
+- API: `http://api.tsker.localhost:1355`
+- Auth: `http://auth.tsker.localhost:1355`
+
 ## Database environments
 
 - Local development uses Docker Postgres from `docker-compose.yml`.
 - Production should provide `DATABASE_URL` via environment (for example,
   PlanetScale Postgres or an equivalent managed PostgreSQL provider).
-- You can override any local defaults by exporting env vars before `pnpm dev`
-  (for example `DATABASE_URL`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`,
-  `VITE_API_URL`, `VITE_AUTH_URL`).
+- Local defaults live in `.env.example`.
+- Override local defaults in `.env` or `.env.local` (both are loaded by
+  `scripts/dev.sh`), for example `DATABASE_URL`, `BETTER_AUTH_URL`,
+  `AUTH_TRUSTED_ORIGINS`, `VITE_API_URL`, `VITE_AUTH_URL`.
+- Portless is installed as a root dev dependency and is available after
+  `pnpm install`.

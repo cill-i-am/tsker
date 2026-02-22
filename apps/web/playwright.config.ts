@@ -29,7 +29,7 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         APP_ENV: process.env.APP_ENV ?? 'local',
-        PORT: process.env.PORT ?? '3002',
+        PORT: process.env.API_PORT ?? '3002',
       },
     },
     {
@@ -39,7 +39,7 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         APP_ENV: process.env.APP_ENV ?? 'local',
-        AUTH_PORT: process.env.AUTH_PORT ?? '3003',
+        PORT: process.env.AUTH_PORT ?? '3003',
         DATABASE_URL:
           process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/tsker',
         BETTER_AUTH_SECRET:

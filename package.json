@@ -22,7 +22,8 @@
     "oxlint": "latest",
     "turbo": "^2.8.10",
     "typescript": "5.9.2",
-    "ultracite": "^7.2.3"
+    "ultracite": "^7.2.3",
+    "portless": "^0.4.1"
   },
   "engines": {
     "node": ">=18"

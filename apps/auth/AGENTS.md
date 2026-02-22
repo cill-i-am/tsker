@@ -58,7 +58,7 @@ pnpm build
 
 - `apps/auth/package.json` requires Node `>=22.0.0`.
 - Config defaults:
-  - `PORT=3003` (usually set from `AUTH_PORT` in scripts)
+  - `PORT=3003`
   - `APP_ENV=local`
   - `LOG_LEVEL=info`
 - Required auth/db config:

@@ -35,6 +35,14 @@ describe("request origin resolution", () => {
     expect(getForwardedOrigin(headers)).toBe("http://localhost:3000");
   });
 
+  it("defaults to http for localhost subdomains", () => {
+    const headers = new Headers({
+      host: "app.tsker.localhost:1355",
+    });
+
+    expect(getForwardedOrigin(headers)).toBe("http://app.tsker.localhost:1355");
+  });
+
   it("defaults to https for non-local hosts", () => {
     const headers = new Headers({
       host: "app.example.com",

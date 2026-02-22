@@ -11,7 +11,7 @@ const config = defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   server: {
-    allowedHosts: ['app.localtest.me'],
+    allowedHosts: [".localhost", "app.localtest.me"],
   },
   plugins: [
     devtools(),
