@@ -90,8 +90,39 @@ const buildEmailContent = (
   };
 };
 
-const sendAuthEmail = async (
+const requireEmailProviderConfig = (
   config: AppConfigType,
+  actionUrl: string,
+  payload: {
+    organizationName?: string;
+    to: string;
+    type: "password_reset" | "email_verification" | "organization_invitation";
+  },
+): { resendApiKey: string; resendFromEmail: string } | null => {
+  const resendApiKey = toOptionalString(config.RESEND_API_KEY);
+  const resendFromEmail = toOptionalString(config.RESEND_FROM_EMAIL);
+
+  if (resendApiKey && resendFromEmail) {
+    return { resendApiKey, resendFromEmail };
+  }
+
+  if (config.APP_ENV === "production") {
+    throw new Error(
+      "Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL for production.",
+    );
+  }
+
+  console.info(`[auth] ${payload.type} email URL`, {
+    appEnv: config.APP_ENV,
+    to: payload.to,
+    url: actionUrl,
+  });
+  return null;
+};
+
+const sendWithResend = async (
+  resendApiKey: string,
+  resendFromEmail: string,
   payload: {
     actionUrl: string;
     organizationName?: string;
@@ -99,27 +130,7 @@ const sendAuthEmail = async (
     type: "password_reset" | "email_verification" | "organization_invitation";
   },
 ) => {
-  const resendApiKey = toOptionalString(config.RESEND_API_KEY);
-  const resendFromEmail = toOptionalString(config.RESEND_FROM_EMAIL);
-  const webBaseUrl = resolveWebBaseUrl(config);
-  const actionUrl = withWebCallbackUrl(payload.actionUrl, webBaseUrl);
-
-  if (!resendApiKey || !resendFromEmail) {
-    if (config.APP_ENV === "production") {
-      throw new Error(
-        "Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL for production.",
-      );
-    }
-
-    console.info(`[auth] ${payload.type} email URL`, {
-      appEnv: config.APP_ENV,
-      to: payload.to,
-      url: actionUrl,
-    });
-    return;
-  }
-
-  const content = buildEmailContent(payload.type, actionUrl, payload.organizationName);
+  const content = buildEmailContent(payload.type, payload.actionUrl, payload.organizationName);
   const response = await fetch(resendEmailEndpoint, {
     body: JSON.stringify({
       from: resendFromEmail,
@@ -141,6 +152,28 @@ const sendAuthEmail = async (
       `Resend API request failed (${response.status}): ${responseBody || response.statusText}`,
     );
   }
+};
+
+const sendAuthEmail = async (
+  config: AppConfigType,
+  payload: {
+    actionUrl: string;
+    organizationName?: string;
+    to: string;
+    type: "password_reset" | "email_verification" | "organization_invitation";
+  },
+) => {
+  const actionUrl = withWebCallbackUrl(payload.actionUrl, resolveWebBaseUrl(config));
+  const providerConfig = requireEmailProviderConfig(config, actionUrl, payload);
+
+  if (!providerConfig) {
+    return;
+  }
+
+  await sendWithResend(providerConfig.resendApiKey, providerConfig.resendFromEmail, {
+    ...payload,
+    actionUrl,
+  });
 };
 
 export type AuthDatabase = ReturnType<typeof createAuthDrizzleClient>;

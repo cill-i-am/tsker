@@ -10,46 +10,72 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requestPasswordReset } from "@/lib/auth-client";
 
+const isSuccessfulStatus = (status: number) => status >= 200 && status < 300;
+
+const runWithSubmitting = async (
+  setIsSubmitting: (value: boolean) => void,
+  operation: () => Promise<void>,
+) => {
+  setIsSubmitting(true);
+
+  try {
+    await operation();
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+const setResetRequestFailure = (
+  setStatus: (value: AuthStatusState | null) => void,
+  message: string,
+) => {
+  setStatus({
+    description: message,
+    title: "Reset request failed",
+    variant: "destructive",
+  });
+};
+
+const getResetPasswordRedirectTo = () =>
+  typeof window === "undefined" ? undefined : `${window.location.origin}/reset-password`;
+
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("dev@localtest.me");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<AuthStatusState | null>(null);
 
+  const submitResetRequest = async () => {
+    setStatus(null);
+    const result = await requestPasswordReset({
+      email,
+      redirectTo: getResetPasswordRedirectTo(),
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Unexpected reset request error.";
+      setResetRequestFailure(setStatus, message);
+      return null;
+    });
+
+    if (!result) {
+      return;
+    }
+
+    if (isSuccessfulStatus(result.status)) {
+      setStatus({
+        description: "If the account exists, a reset link has been sent to your inbox.",
+        title: "Reset email sent",
+      });
+      return;
+    }
+
+    setResetRequestFailure(
+      setStatus,
+      "We could not send a reset link. Check the email and try again.",
+    );
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsSubmitting(true);
-    setStatus(null);
-
-    try {
-      const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
-      const result = await requestPasswordReset({
-        email,
-        redirectTo,
-      });
-
-      if (result.status >= 200 && result.status < 300) {
-        setStatus({
-          description: "If the account exists, a reset link has been sent to your inbox.",
-          title: "Reset email sent",
-        });
-        return;
-      }
-
-      setStatus({
-        description: "We could not send a reset link. Check the email and try again.",
-        title: "Reset request failed",
-        variant: "destructive",
-      });
-    } catch (error) {
-      setStatus({
-        description: error instanceof Error ? error.message : "Unexpected reset request error.",
-        title: "Reset request failed",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    await runWithSubmitting(setIsSubmitting, submitResetRequest);
   };
 
   return (

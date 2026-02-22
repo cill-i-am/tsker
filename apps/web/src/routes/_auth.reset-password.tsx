@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
@@ -14,68 +14,101 @@ interface ResetPasswordSearch {
   token?: string;
 }
 
+const isSuccessfulStatus = (status: number) => status >= 200 && status < 300;
+
+const runWithSubmitting = async (
+  setIsSubmitting: (value: boolean) => void,
+  operation: () => Promise<void>,
+) => {
+  setIsSubmitting(true);
+
+  try {
+    await operation();
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+const setResetFailureStatus = (
+  setStatus: (value: AuthStatusState | null) => void,
+  description: string,
+) => {
+  setStatus({
+    description,
+    title: "Password reset failed",
+    variant: "destructive",
+  });
+};
+
+const getValidationError = (token: string, password: string, confirmPassword: string) => {
+  if (!token) {
+    return {
+      description: "Paste the token from your email reset link before continuing.",
+      title: "Reset token required",
+      variant: "destructive",
+    } satisfies AuthStatusState;
+  }
+
+  if (password !== confirmPassword) {
+    return {
+      description: "Passwords do not match. Enter matching values and try again.",
+      title: "Password mismatch",
+      variant: "destructive",
+    } satisfies AuthStatusState;
+  }
+
+  return null;
+};
+
 const ResetPasswordPage = () => {
   const navigate = useNavigate();
-  const search = Route.useSearch();
+  const search = useSearch({ from: "/_auth/reset-password" });
   const [token, setToken] = useState(search.token ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<AuthStatusState | null>(null);
 
+  const submitPasswordReset = async () => {
+    setStatus(null);
+    const result = await resetPassword({
+      newPassword: password,
+      token,
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Unexpected password reset error.";
+      setResetFailureStatus(setStatus, message);
+      return null;
+    });
+
+    if (!result) {
+      return;
+    }
+
+    if (isSuccessfulStatus(result.status)) {
+      setStatus({
+        description: "Your password was updated. You can now sign in with the new password.",
+        title: "Password reset complete",
+      });
+      await navigate({ to: "/login" });
+      return;
+    }
+
+    setResetFailureStatus(
+      setStatus,
+      "The reset link may be invalid or expired. Request a new one and retry.",
+    );
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const validationError = getValidationError(token, password, confirmPassword);
 
-    if (!token) {
-      setStatus({
-        description: "Paste the token from your email reset link before continuing.",
-        title: "Reset token required",
-        variant: "destructive",
-      });
+    if (validationError) {
+      setStatus(validationError);
       return;
     }
 
-    if (password !== confirmPassword) {
-      setStatus({
-        description: "Passwords do not match. Enter matching values and try again.",
-        title: "Password mismatch",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setStatus(null);
-
-    try {
-      const result = await resetPassword({
-        newPassword: password,
-        token,
-      });
-
-      if (result.status >= 200 && result.status < 300) {
-        setStatus({
-          description: "Your password was updated. You can now sign in with the new password.",
-          title: "Password reset complete",
-        });
-        await navigate({ to: "/login" });
-        return;
-      }
-
-      setStatus({
-        description: "The reset link may be invalid or expired. Request a new one and retry.",
-        title: "Password reset failed",
-        variant: "destructive",
-      });
-    } catch (error) {
-      setStatus({
-        description: error instanceof Error ? error.message : "Unexpected password reset error.",
-        title: "Password reset failed",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    await runWithSubmitting(setIsSubmitting, submitPasswordReset);
   };
 
   return (

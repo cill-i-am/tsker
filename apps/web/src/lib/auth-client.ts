@@ -1,5 +1,5 @@
-import { createAuthClient } from "better-auth/react";
 import { organizationClient } from "better-auth/client/plugins";
+import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355",
@@ -43,7 +43,7 @@ const getErrorStatus = (error: unknown): number | null => {
     return null;
   }
 
-  const status = error.status;
+  const { status } = error;
   return typeof status === "number" ? status : null;
 };
 
@@ -79,7 +79,8 @@ export const signOut = async (): Promise<AuthMutationResult> =>
 
 export const requestPasswordReset = async (
   input: RequestPasswordResetInput,
-): Promise<AuthMutationResult> => toAuthMutationResult(await authClient.requestPasswordReset(input));
+): Promise<AuthMutationResult> =>
+  toAuthMutationResult(await authClient.requestPasswordReset(input));
 
 export const resetPassword = async (input: ResetPasswordInput): Promise<AuthMutationResult> =>
   toAuthMutationResult(await authClient.resetPassword(input));

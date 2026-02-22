@@ -212,7 +212,7 @@ const getSession = (handler: WebHandler, cookieHeader?: string) =>
           }
         : {
             origin: trustedOrigin,
-      },
+          },
     }),
   );
 
@@ -237,8 +237,8 @@ const createOrganization = (
         slug,
       }),
       headers: {
-        cookie: cookieHeader,
         "content-type": "application/json",
+        cookie: cookieHeader,
         origin,
       },
       method: "POST",
@@ -298,6 +298,44 @@ const withDbServer = async (run: (handler: WebHandler) => Promise<void>) => {
   }
 };
 
+const signUpAndExtractCookie = async (
+  handler: WebHandler,
+  user: { email: string; name: string; password: string },
+) => {
+  const signUpResponse = await signUpEmail(handler, {
+    email: user.email,
+    name: user.name,
+    origin: trustedOrigin,
+    password: user.password,
+  });
+  const setCookieHeaders = readSetCookieHeaders(signUpResponse);
+
+  return {
+    cookieHeader: setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; "),
+    setCookieHeaders,
+    signUpResponse,
+  };
+};
+
+const createOrganizationWithBody = async (
+  handler: WebHandler,
+  input: { cookieHeader: string; slug: string },
+) => {
+  const createOrganizationResponse = await createOrganization(handler, {
+    cookieHeader: input.cookieHeader,
+    name: "Organization Flow Org",
+    origin: trustedOrigin,
+    slug: input.slug,
+  });
+  const body = (await createOrganizationResponse.json().catch(() => null)) as {
+    id?: string;
+    name?: string;
+    slug?: string;
+  } | null;
+
+  return { body, createOrganizationResponse };
+};
+
 describe("up endpoint", () => {
   it("returns up payload", async () => {
     const { handler, dispose } = await createTestServer(baseEnv);
@@ -354,9 +392,11 @@ describe("auth routes", () => {
     const { handler, dispose } = await createTestServer(baseEnv);
 
     try {
-      const response = await preflightAuthRoute(handler, "/api/auth/request-password-reset", "POST");
-
-      expect(response.status).not.toBe(404);
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/request-password-reset",
+        "POST",
+      );
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -367,9 +407,11 @@ describe("auth routes", () => {
     const { handler, dispose } = await createTestServer(baseEnv);
 
     try {
-      const response = await preflightAuthRoute(handler, "/api/auth/send-verification-email", "POST");
-
-      expect(response.status).not.toBe(404);
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/send-verification-email",
+        "POST",
+      );
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -399,14 +441,14 @@ describe("auth routes", () => {
       await dispose();
     }
   });
+});
 
+describe("auth organization routes", () => {
   it("mounts organization list endpoint", async () => {
     const { handler, dispose } = await createTestServer(baseEnv);
 
     try {
       const response = await preflightAuthRoute(handler, "/api/auth/organization/list", "GET");
-
-      expect(response.status).not.toBe(404);
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -418,8 +460,6 @@ describe("auth routes", () => {
 
     try {
       const response = await preflightAuthRoute(handler, "/api/auth/organization/active", "GET");
-
-      expect(response.status).not.toBe(404);
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -435,8 +475,6 @@ describe("auth routes", () => {
         "/api/auth/organization/set-active",
         "POST",
       );
-
-      expect(response.status).not.toBe(404);
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -452,8 +490,6 @@ describe("auth routes", () => {
         "/api/auth/organization/list-invitations",
         "GET",
       );
-
-      expect(response.status).not.toBe(404);
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -469,8 +505,6 @@ describe("auth routes", () => {
         "/api/auth/organization/accept-invitation",
         "POST",
       );
-
-      expect(response.status).not.toBe(404);
       expect(response.status).toBe(204);
     } finally {
       await dispose();
@@ -621,38 +655,25 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
 
   it("creates organizations with trusted origin and authenticated cookie flow", async () => {
     await withDbServer(async (handler) => {
-      const email = `org-flow-${Date.now()}@example.com`;
-      const signUpResponse = await signUpEmail(handler, {
-        email,
+      const signUp = await signUpAndExtractCookie(handler, {
+        email: `org-flow-${Date.now()}@example.com`,
         name: "Organization Flow User",
-        origin: trustedOrigin,
         password: "password123!",
       });
-
-      expect(signUpResponse.status).toBeLessThan(400);
-
-      const setCookieHeaders = readSetCookieHeaders(signUpResponse);
-      expect(setCookieHeaders.length).toBeGreaterThan(0);
-
-      const cookieHeader = setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; ");
       const slug = `org-flow-${Date.now()}`;
-      const createOrganizationResponse = await createOrganization(handler, {
-        cookieHeader,
-        name: "Organization Flow Org",
-        origin: trustedOrigin,
+      const createdOrganization = await createOrganizationWithBody(handler, {
+        cookieHeader: signUp.cookieHeader,
         slug,
       });
-      const body = (await createOrganizationResponse.json().catch(() => null)) as {
-        id?: string;
-        name?: string;
-        slug?: string;
-      } | null;
 
-      expect(createOrganizationResponse.status).not.toBe(404);
-      expect(createOrganizationResponse.status).toBe(200);
-      expect(body?.id).toEqual(expect.any(String));
-      expect(body?.name).toBe("Organization Flow Org");
-      expect(body?.slug).toBe(slug);
+      expect(signUp.signUpResponse.status).toBeLessThan(400);
+      expect(signUp.setCookieHeaders.length).toBeGreaterThan(0);
+      expect(createdOrganization.createOrganizationResponse.status).toBe(200);
+      expect(createdOrganization.body).toMatchObject({
+        id: expect.any(String),
+        name: "Organization Flow Org",
+        slug,
+      });
     });
   });
 });

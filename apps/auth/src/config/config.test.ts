@@ -21,12 +21,21 @@ describe("app config service", () => {
   it("uses sane defaults", async () => {
     const config = await Effect.runPromise(loadConfig(requiredAuthEnv));
 
-    expect(config.PORT).toBe(3003);
-    expect(config.APP_ENV).toBe("local");
-    expect(config.LOG_LEVEL).toBe("info");
-    expect(Option.isNone(config.RESEND_API_KEY)).toBeTruthy();
-    expect(Option.isNone(config.RESEND_FROM_EMAIL)).toBeTruthy();
-    expect(Option.isNone(config.WEB_BASE_URL)).toBeTruthy();
+    expect({
+      appEnv: config.APP_ENV,
+      logLevel: config.LOG_LEVEL,
+      port: config.PORT,
+      resendApiKey: Option.getOrUndefined(config.RESEND_API_KEY),
+      resendFromEmail: Option.getOrUndefined(config.RESEND_FROM_EMAIL),
+      webBaseUrl: Option.getOrUndefined(config.WEB_BASE_URL),
+    }).toStrictEqual({
+      appEnv: "local",
+      logLevel: "info",
+      port: 3003,
+      resendApiKey: undefined,
+      resendFromEmail: undefined,
+      webBaseUrl: undefined,
+    });
   });
 
   it("decodes resend and web env vars when provided", async () => {
@@ -39,18 +48,15 @@ describe("app config service", () => {
       }),
     );
 
-    expect(Option.isSome(config.RESEND_API_KEY)).toBeTruthy();
-    expect(Option.isSome(config.RESEND_FROM_EMAIL)).toBeTruthy();
-    expect(Option.isSome(config.WEB_BASE_URL)).toBeTruthy();
-    if (Option.isSome(config.RESEND_API_KEY)) {
-      expect(config.RESEND_API_KEY.value).toBe("re_test_123");
-    }
-    if (Option.isSome(config.RESEND_FROM_EMAIL)) {
-      expect(config.RESEND_FROM_EMAIL.value).toBe("auth@example.com");
-    }
-    if (Option.isSome(config.WEB_BASE_URL)) {
-      expect(config.WEB_BASE_URL.value).toBe("https://app.localtest.me");
-    }
+    expect({
+      resendApiKey: Option.getOrUndefined(config.RESEND_API_KEY),
+      resendFromEmail: Option.getOrUndefined(config.RESEND_FROM_EMAIL),
+      webBaseUrl: Option.getOrUndefined(config.WEB_BASE_URL),
+    }).toStrictEqual({
+      resendApiKey: "re_test_123",
+      resendFromEmail: "auth@example.com",
+      webBaseUrl: "https://app.localtest.me",
+    });
   });
 
   it("allows production without telemetry env", async () => {

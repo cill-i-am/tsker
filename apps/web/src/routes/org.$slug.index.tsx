@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect, useLoaderData } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect, useLoaderData, useParams } from "@tanstack/react-router";
 
 import { getSessionEmail, isSessionEmailVerified } from "@/components/auth/session-state";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { sessionQueryOptions } from "@/lib/session-query";
 
 const OrgIndexPage = () => {
-  const { slug } = Route.useParams();
+  const { slug } = useParams({ from: "/org/$slug/" });
   const session = useLoaderData({ from: "/org/$slug/" });
 
   return (

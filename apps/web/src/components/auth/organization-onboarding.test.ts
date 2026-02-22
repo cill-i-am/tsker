@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { createElement, type ComponentType } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import {
   getPendingInvitations,
@@ -48,11 +48,11 @@ const {
   useQueryMock: vi.fn(),
 }));
 
-vi.mock("@tanstack/react-router", async () => {
+vi.mock<Record<string, unknown>>(import("@tanstack/react-router"), async () => {
   const React = await import("react");
 
   return {
-    Link: ({ children }: { children?: any }) => React.createElement("a", null, children),
+    Link: ({ children }: { children?: ReactNode }) => React.createElement("a", null, children),
     createFileRoute: (path: string) => (options: Record<string, unknown>) => {
       routeOptionsByPath.set(path, options);
 
@@ -67,11 +67,11 @@ vi.mock("@tanstack/react-router", async () => {
   };
 });
 
-vi.mock("@tanstack/react-query", () => ({
+vi.mock<Record<string, unknown>>(import("@tanstack/react-query"), () => ({
   useQuery: (input: unknown) => useQueryMock(input),
 }));
 
-vi.mock("@/lib/auth-client", () => ({
+vi.mock<Record<string, unknown>>(import("@/lib/auth-client"), () => ({
   authClient: {
     acceptInvitation: (input: unknown) => acceptInvitationMock(input),
     activeOrganization: () => activeOrganizationMock(),
@@ -84,7 +84,7 @@ vi.mock("@/lib/auth-client", () => ({
   },
 }));
 
-import "@/routes/onboarding";
+await import("@/routes/onboarding");
 
 const onboardingRouteOptions = routeOptionsByPath.get("/onboarding");
 
@@ -97,21 +97,60 @@ const OnboardingComponent = onboardingRouteOptions.component as ComponentType;
 const makeQueryResult = (data: unknown) => ({
   data,
   isPending: false,
-  refetch: vi.fn().mockResolvedValue(undefined),
+  refetch: vi.fn().mockResolvedValue(null),
 });
+
+const resetRouteMocks = () => {
+  vi.clearAllMocks();
+  useListOrganizationsMock.mockReturnValue(makeQueryResult([]));
+  useActiveOrganizationMock.mockReturnValue(makeQueryResult(null));
+  useQueryMock.mockReturnValue(makeQueryResult([]));
+};
+
+const setDefaultLoaderSession = () => {
+  loaderSessionState.value = {
+    authenticated: true,
+    payload: {
+      user: {
+        email: "owner@example.com",
+        emailVerified: true,
+      },
+    },
+    status: 200,
+  };
+};
+
+const setDefaultOrganizationResponses = () => {
+  listOrganizationsMock.mockResolvedValue({ data: [], error: null });
+  activeOrganizationMock.mockResolvedValue({ data: null, error: null });
+  listUserInvitationsMock.mockResolvedValue({ data: [], error: null });
+  createOrganizationMock.mockResolvedValue({ data: null, error: null });
+  setActiveOrganizationMock.mockResolvedValue({ data: null, error: null });
+  acceptInvitationMock.mockResolvedValue({ data: null, error: null });
+};
+
+const setupOnboardingTestContext = () => {
+  cleanup();
+  resetRouteMocks();
+  setDefaultLoaderSession();
+  setDefaultOrganizationResponses();
+};
 
 describe("organization-onboarding helpers", () => {
   it("normalizes slug input to lowercase kebab-case", () => {
+    setupOnboardingTestContext();
     expect(normalizeOrganizationSlug("  Acme   Product Team  ")).toBe("acme-product-team");
     expect(normalizeOrganizationSlug("ACME___HQ!!")).toBe("acme-hq");
   });
 
   it("falls back to organization name when slug input is blank", () => {
+    setupOnboardingTestContext();
     expect(resolveCreateOrganizationSlug({ name: "Acme Space", slug: "   " })).toBe("acme-space");
     expect(resolveCreateOrganizationSlug({ name: "", slug: "   " })).toBe("");
   });
 
   it("filters pending invitations only", () => {
+    setupOnboardingTestContext();
     const invitations = [
       { id: "inv_1", status: "pending" },
       { id: "inv_2", status: "accepted" },
@@ -119,7 +158,7 @@ describe("organization-onboarding helpers", () => {
       { id: "inv_4", status: "rejected" },
     ];
 
-    expect(getPendingInvitations(invitations)).toEqual([
+    expect(getPendingInvitations(invitations)).toStrictEqual([
       { id: "inv_1", status: "pending" },
       { id: "inv_3", status: "pending" },
     ]);
@@ -127,37 +166,8 @@ describe("organization-onboarding helpers", () => {
 });
 
 describe("onboarding route actions", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    loaderSessionState.value = {
-      authenticated: true,
-      payload: {
-        user: {
-          email: "owner@example.com",
-          emailVerified: true,
-        },
-      },
-      status: 200,
-    };
-
-    useListOrganizationsMock.mockReturnValue(makeQueryResult([]));
-    useActiveOrganizationMock.mockReturnValue(makeQueryResult(null));
-    useQueryMock.mockReturnValue(makeQueryResult([]));
-
-    listOrganizationsMock.mockResolvedValue({ data: [], error: null });
-    activeOrganizationMock.mockResolvedValue({ data: null, error: null });
-    listUserInvitationsMock.mockResolvedValue({ data: [], error: null });
-    createOrganizationMock.mockResolvedValue({ data: null, error: null });
-    setActiveOrganizationMock.mockResolvedValue({ data: null, error: null });
-    acceptInvitationMock.mockResolvedValue({ data: null, error: null });
-  });
-
-  afterEach(() => {
-    cleanup();
-  });
-
   it("shows empty onboarding states when the user has no organizations or invitations", () => {
+    setupOnboardingTestContext();
     render(createElement(OnboardingComponent));
 
     expect(
@@ -167,6 +177,7 @@ describe("onboarding route actions", () => {
   });
 
   it("wires create-organization action with trimmed and normalized payload", async () => {
+    setupOnboardingTestContext();
     createOrganizationMock.mockResolvedValue({
       data: {
         id: "org_1",
@@ -204,6 +215,7 @@ describe("onboarding route actions", () => {
   });
 
   it("wires invitation acceptance with invitation id and org navigation", async () => {
+    setupOnboardingTestContext();
     useQueryMock.mockReturnValue(
       makeQueryResult([
         {

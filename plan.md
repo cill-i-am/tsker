@@ -83,6 +83,7 @@
 - [x] Wave B verification
 - [x] Final integration verification
 - [x] Post-integration hardening verification (auth-first root routing + e2e stabilization)
+- [x] Temporary lint suppression removal verification (`apps/web` + `apps/auth` lint/type-check clean without manual suppressions)
 
 ### Lane Execution Log
 - [x] lane-auth-server-hardening merged via `843939e`
@@ -117,6 +118,13 @@
 - [x] `pnpm --filter web test` (pass)
 - [x] `pnpm --filter web type-check` (pass)
 - [x] `pnpm --filter web test:e2e` (pass)
+
+### Lint Suppression Cleanup Run
+- [x] `pnpm --filter auth lint` (pass)
+- [x] `pnpm --filter auth type-check` (pass)
+- [x] `pnpm --filter web lint` (pass)
+- [x] `pnpm --filter web type-check` (pass)
+- [x] `pnpm lint` (pass)
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening

@@ -58,7 +58,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const getStringValue = (record: Record<string, unknown>, key: string): string | null => {
   const value = record[key];
-
   return typeof value === "string" ? value : null;
 };
 
@@ -104,17 +103,9 @@ const toOrganizationList = (value: unknown): OrganizationSummary[] => {
     return [];
   }
 
-  const organizations: OrganizationSummary[] = [];
-
-  for (const item of value) {
-    const organization = toOrganizationSummary(item);
-
-    if (organization) {
-      organizations.push(organization);
-    }
-  }
-
-  return organizations;
+  return value
+    .map(toOrganizationSummary)
+    .filter((item): item is OrganizationSummary => item !== null);
 };
 
 const toInvitationList = (value: unknown): InvitationSummary[] => {
@@ -122,17 +113,7 @@ const toInvitationList = (value: unknown): InvitationSummary[] => {
     return [];
   }
 
-  const invitations: InvitationSummary[] = [];
-
-  for (const item of value) {
-    const invitation = toInvitationSummary(item);
-
-    if (invitation) {
-      invitations.push(invitation);
-    }
-  }
-
-  return invitations;
+  return value.map(toInvitationSummary).filter((item): item is InvitationSummary => item !== null);
 };
 
 const getErrorMessage = (value: unknown, fallback: string): string => {
@@ -140,19 +121,75 @@ const getErrorMessage = (value: unknown, fallback: string): string => {
     return fallback;
   }
 
-  const message = getStringValue(value, "message");
-  return message ?? fallback;
+  return getStringValue(value, "message") ?? fallback;
 };
 
-const OnboardingPage = () => {
-  const session = useLoaderData({ from: "/onboarding" });
-  const navigate = useNavigate();
-  const email = getSessionEmail(session);
-  const emailVerified = isSessionEmailVerified(session);
+const getEmailVerificationRequiredStatus = (description: string): AuthStatusState => ({
+  description,
+  title: "Email verification required",
+  variant: "destructive",
+});
 
+const getActionFailureStatus = (title: string, description: string): AuthStatusState => ({
+  description,
+  title,
+  variant: "destructive",
+});
+
+const getOrganizationActionLabel = (isSwitching: boolean, isActive: boolean): string => {
+  if (isSwitching) {
+    return "Opening...";
+  }
+
+  if (isActive) {
+    return "Open workspace";
+  }
+
+  return "Set active";
+};
+
+const requireVerifiedEmail = (
+  emailVerified: boolean,
+  setStatus: (value: AuthStatusState | null) => void,
+  description: string,
+): boolean => {
+  if (emailVerified) {
+    return true;
+  }
+
+  setStatus(getEmailVerificationRequiredStatus(description));
+  return false;
+};
+
+const runOrganizationAction = async (
+  action: () => Promise<AuthActionResult>,
+  setStatus: (value: AuthStatusState | null) => void,
+  onErrorTitle: string,
+  onErrorFallback: string,
+  onSuccess: (data: unknown) => Promise<void>,
+) => {
+  setStatus(null);
+  const result = await action().catch((error: unknown) => {
+    const description = error instanceof Error ? error.message : onErrorFallback;
+    setStatus(getActionFailureStatus(onErrorTitle, description));
+    return null;
+  });
+
+  if (!result) {
+    return;
+  }
+
+  if (result.error) {
+    setStatus(getActionFailureStatus(onErrorTitle, getErrorMessage(result.error, onErrorFallback)));
+    return;
+  }
+
+  await onSuccess(result.data);
+};
+
+const useOrganizationData = (organizationActionClient: OrganizationActionClient) => {
   const listOrganizations = authClient.useListOrganizations();
   const activeOrganization = authClient.useActiveOrganization();
-  const organizationActionClient = authClient as typeof authClient & OrganizationActionClient;
   const listUserInvitations = useQuery({
     queryFn: async () => {
       const result = await organizationActionClient.listUserInvitations();
@@ -171,7 +208,27 @@ const OnboardingPage = () => {
   const activeOrg = toOrganizationSummary(activeOrganization.data);
   const invitations = toInvitationList(listUserInvitations.data);
   const pendingInvitations = getPendingInvitations(invitations);
+  const isLoading =
+    listOrganizations.isPending || activeOrganization.isPending || listUserInvitations.isPending;
 
+  const refetch = async () => {
+    await Promise.all([
+      listOrganizations.refetch(),
+      activeOrganization.refetch(),
+      listUserInvitations.refetch(),
+    ]);
+  };
+
+  return {
+    activeOrg,
+    isLoading,
+    organizations,
+    pendingInvitations,
+    refetch,
+  };
+};
+
+const useOnboardingFormState = () => {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [createSubmitting, setCreateSubmitting] = useState(false);
@@ -179,25 +236,32 @@ const OnboardingPage = () => {
   const [acceptingInvitationId, setAcceptingInvitationId] = useState<string | null>(null);
   const [status, setStatus] = useState<AuthStatusState | null>(null);
 
-  const isLoading =
-    listOrganizations.isPending || activeOrganization.isPending || listUserInvitations.isPending;
+  return {
+    acceptingInvitationId,
+    createSubmitting,
+    name,
+    setAcceptingInvitationId,
+    setCreateSubmitting,
+    setName,
+    setSlug,
+    setStatus,
+    setSwitchingOrganizationId,
+    slug,
+    status,
+    switchingOrganizationId,
+  };
+};
 
-  const refreshOrgData = async (): Promise<{
-    activeOrganization: OrganizationSummary | null;
-    invitations: InvitationSummary[];
-    organizations: OrganizationSummary[];
-  }> => {
+const createRefreshOrgData =
+  (organizationActionClient: OrganizationActionClient, refetch: () => Promise<void>) =>
+  async () => {
     const [organizationsResult, activeOrganizationResult, invitationsResult] = await Promise.all([
       organizationActionClient.listOrganizations(),
       organizationActionClient.activeOrganization(),
       organizationActionClient.listUserInvitations(),
     ]);
 
-    await Promise.all([
-      listOrganizations.refetch(),
-      activeOrganization.refetch(),
-      listUserInvitations.refetch(),
-    ]);
+    await refetch();
 
     return {
       activeOrganization: toOrganizationSummary(
@@ -208,178 +272,218 @@ const OnboardingPage = () => {
     };
   };
 
-  const navigateToOrganization = async (organizationSlug: string) => {
+const createNavigateToOrganization =
+  (navigate: ReturnType<typeof useNavigate>) => async (organizationSlug: string) => {
     await navigate({
       params: { slug: organizationSlug },
       to: "/org/$slug",
     });
   };
 
-  const handleCreateOrganization = async (event: FormEvent<HTMLFormElement>) => {
+const createCreateOrganizationHandler =
+  (
+    emailVerified: boolean,
+    formState: ReturnType<typeof useOnboardingFormState>,
+    organizationActionClient: OrganizationActionClient,
+    refreshOrgData: () => Promise<{
+      activeOrganization: OrganizationSummary | null;
+      invitations: InvitationSummary[];
+      organizations: OrganizationSummary[];
+    }>,
+    navigateToOrganization: (organizationSlug: string) => Promise<void>,
+  ) =>
+  async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!emailVerified) {
-      setStatus({
-        description: "Verify your email before creating an organization.",
-        title: "Email verification required",
-        variant: "destructive",
-      });
+    if (
+      !requireVerifiedEmail(
+        emailVerified,
+        formState.setStatus,
+        "Verify your email before creating an organization.",
+      )
+    ) {
       return;
     }
 
-    const normalizedSlug = resolveCreateOrganizationSlug({ name, slug });
+    const normalizedSlug = resolveCreateOrganizationSlug({
+      name: formState.name,
+      slug: formState.slug,
+    });
 
     if (!normalizedSlug) {
-      setStatus({
-        description: "Provide a valid organization name or slug.",
-        title: "Organization slug is required",
-        variant: "destructive",
-      });
+      formState.setStatus(
+        getActionFailureStatus(
+          "Organization slug is required",
+          "Provide a valid organization name or slug.",
+        ),
+      );
       return;
     }
 
-    setCreateSubmitting(true);
-    setStatus(null);
+    formState.setCreateSubmitting(true);
+    await runOrganizationAction(
+      () =>
+        organizationActionClient.createOrganization({
+          name: formState.name.trim(),
+          slug: normalizedSlug,
+        }),
+      formState.setStatus,
+      "Unable to create organization",
+      "Unexpected organization creation error.",
+      async (data) => {
+        const createdOrganization = toOrganizationSummary(data);
+        await refreshOrgData();
 
-    try {
-      const result = await organizationActionClient.createOrganization({
-        name: name.trim(),
-        slug: normalizedSlug,
-      });
+        if (createdOrganization?.slug) {
+          await navigateToOrganization(createdOrganization.slug);
+          return;
+        }
 
-      if (result.error) {
-        setStatus({
-          description: getErrorMessage(result.error, "Organization creation failed."),
-          title: "Unable to create organization",
-          variant: "destructive",
+        formState.setName("");
+        formState.setSlug("");
+        formState.setStatus({
+          description: "Organization created.",
+          title: "Success",
         });
-        return;
-      }
-
-      const createdOrganization = toOrganizationSummary(result.data);
-      await refreshOrgData();
-
-      if (createdOrganization?.slug) {
-        await navigateToOrganization(createdOrganization.slug);
-        return;
-      }
-
-      setName("");
-      setSlug("");
-      setStatus({
-        description: "Organization created.",
-        title: "Success",
-      });
-    } catch (error) {
-      setStatus({
-        description:
-          error instanceof Error ? error.message : "Unexpected organization creation error.",
-        title: "Unable to create organization",
-        variant: "destructive",
-      });
-    } finally {
-      setCreateSubmitting(false);
-    }
+      },
+    );
+    formState.setCreateSubmitting(false);
   };
 
-  const handleSetActiveOrganization = async (organization: OrganizationSummary) => {
-    if (!emailVerified) {
-      setStatus({
-        description: "Verify your email before accessing organization workspaces.",
-        title: "Email verification required",
-        variant: "destructive",
-      });
+const createSetActiveOrganizationHandler =
+  (
+    emailVerified: boolean,
+    formState: ReturnType<typeof useOnboardingFormState>,
+    organizationActionClient: OrganizationActionClient,
+    refreshOrgData: () => Promise<{
+      activeOrganization: OrganizationSummary | null;
+      invitations: InvitationSummary[];
+      organizations: OrganizationSummary[];
+    }>,
+    navigateToOrganization: (organizationSlug: string) => Promise<void>,
+  ) =>
+  async (organization: OrganizationSummary) => {
+    if (
+      !requireVerifiedEmail(
+        emailVerified,
+        formState.setStatus,
+        "Verify your email before accessing organization workspaces.",
+      )
+    ) {
       return;
     }
 
-    setSwitchingOrganizationId(organization.id);
-    setStatus(null);
-
-    try {
-      const result = await organizationActionClient.setActiveOrganization({
-        organizationId: organization.id,
-      });
-
-      if (result.error) {
-        setStatus({
-          description: getErrorMessage(result.error, "Failed to set active organization."),
-          title: "Unable to set active organization",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await refreshOrgData();
-      const selectedOrganization = toOrganizationSummary(result.data) ?? organization;
-      await navigateToOrganization(selectedOrganization.slug);
-    } catch (error) {
-      setStatus({
-        description:
-          error instanceof Error ? error.message : "Unexpected organization switch error.",
-        title: "Unable to set active organization",
-        variant: "destructive",
-      });
-    } finally {
-      setSwitchingOrganizationId(null);
-    }
+    formState.setSwitchingOrganizationId(organization.id);
+    await runOrganizationAction(
+      () => organizationActionClient.setActiveOrganization({ organizationId: organization.id }),
+      formState.setStatus,
+      "Unable to set active organization",
+      "Unexpected organization switch error.",
+      async (data) => {
+        await refreshOrgData();
+        const selectedOrganization = toOrganizationSummary(data) ?? organization;
+        await navigateToOrganization(selectedOrganization.slug);
+      },
+    );
+    formState.setSwitchingOrganizationId(null);
   };
 
-  const handleAcceptInvitation = async (invitation: InvitationSummary) => {
-    if (!emailVerified) {
-      setStatus({
-        description: "Verify your email before accepting invitations.",
-        title: "Email verification required",
-        variant: "destructive",
-      });
+const createAcceptInvitationHandler =
+  (
+    emailVerified: boolean,
+    formState: ReturnType<typeof useOnboardingFormState>,
+    organizationActionClient: OrganizationActionClient,
+    refreshOrgData: () => Promise<{
+      activeOrganization: OrganizationSummary | null;
+      invitations: InvitationSummary[];
+      organizations: OrganizationSummary[];
+    }>,
+    navigateToOrganization: (organizationSlug: string) => Promise<void>,
+  ) =>
+  async (invitation: InvitationSummary) => {
+    if (
+      !requireVerifiedEmail(
+        emailVerified,
+        formState.setStatus,
+        "Verify your email before accepting invitations.",
+      )
+    ) {
       return;
     }
 
-    setAcceptingInvitationId(invitation.id);
-    setStatus(null);
+    formState.setAcceptingInvitationId(invitation.id);
+    await runOrganizationAction(
+      () => organizationActionClient.acceptInvitation({ invitationId: invitation.id }),
+      formState.setStatus,
+      "Unable to accept invitation",
+      "Unexpected invitation acceptance error.",
+      async () => {
+        const refreshed = await refreshOrgData();
+        const targetSlug =
+          refreshed.activeOrganization?.slug ||
+          invitation.organizationSlug ||
+          refreshed.organizations.find(
+            (organization) => organization.name === invitation.organizationName,
+          )?.slug;
 
-    try {
-      const result = await organizationActionClient.acceptInvitation({
-        invitationId: invitation.id,
-      });
+        if (targetSlug) {
+          await navigateToOrganization(targetSlug);
+          return;
+        }
 
-      if (result.error) {
-        setStatus({
-          description: getErrorMessage(result.error, "Invitation could not be accepted."),
-          title: "Unable to accept invitation",
-          variant: "destructive",
+        formState.setStatus({
+          description: "Invitation accepted. Choose an organization to continue.",
+          title: "Success",
         });
-        return;
-      }
-
-      const refreshed = await refreshOrgData();
-
-      const targetSlug =
-        refreshed.activeOrganization?.slug ||
-        invitation.organizationSlug ||
-        refreshed.organizations.find(
-          (organization) => organization.name === invitation.organizationName,
-        )?.slug;
-
-      if (targetSlug) {
-        await navigateToOrganization(targetSlug);
-        return;
-      }
-
-      setStatus({
-        description: "Invitation accepted. Choose an organization to continue.",
-        title: "Success",
-      });
-    } catch (error) {
-      setStatus({
-        description:
-          error instanceof Error ? error.message : "Unexpected invitation acceptance error.",
-        title: "Unable to accept invitation",
-        variant: "destructive",
-      });
-    } finally {
-      setAcceptingInvitationId(null);
-    }
+      },
+    );
+    formState.setAcceptingInvitationId(null);
   };
+
+const useOnboardingController = (emailVerified: boolean) => {
+  const navigate = useNavigate();
+  const organizationActionClient = authClient as typeof authClient & OrganizationActionClient;
+  const organizationData = useOrganizationData(organizationActionClient);
+  const formState = useOnboardingFormState();
+  const refreshOrgData = createRefreshOrgData(organizationActionClient, organizationData.refetch);
+  const navigateToOrganization = createNavigateToOrganization(navigate);
+  const handleCreateOrganization = createCreateOrganizationHandler(
+    emailVerified,
+    formState,
+    organizationActionClient,
+    refreshOrgData,
+    navigateToOrganization,
+  );
+  const handleSetActiveOrganization = createSetActiveOrganizationHandler(
+    emailVerified,
+    formState,
+    organizationActionClient,
+    refreshOrgData,
+    navigateToOrganization,
+  );
+  const handleAcceptInvitation = createAcceptInvitationHandler(
+    emailVerified,
+    formState,
+    organizationActionClient,
+    refreshOrgData,
+    navigateToOrganization,
+  );
+
+  return {
+    ...formState,
+    ...organizationData,
+    handleAcceptInvitation,
+    handleCreateOrganization,
+    handleSetActiveOrganization,
+    navigateToOrganization,
+  };
+};
+
+const OnboardingPage = () => {
+  const session = useLoaderData({ from: "/onboarding" });
+  const email = getSessionEmail(session);
+  const emailVerified = isSessionEmailVerified(session);
+  const controller = useOnboardingController(emailVerified);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
@@ -395,7 +499,7 @@ const OnboardingPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!emailVerified ? (
+          {emailVerified ? null : (
             <AuthStatus
               state={{
                 description:
@@ -404,16 +508,16 @@ const OnboardingPage = () => {
                 variant: "destructive",
               }}
             />
-          ) : null}
+          )}
 
-          {status ? <AuthStatus state={status} /> : null}
+          {controller.status ? <AuthStatus state={controller.status} /> : null}
 
           <div className="flex flex-wrap gap-2">
             <Button
-              disabled={!activeOrg?.slug || !emailVerified}
-              onClick={() => {
-                if (activeOrg?.slug) {
-                  void navigateToOrganization(activeOrg.slug);
+              disabled={!controller.activeOrg?.slug || !emailVerified}
+              onClick={async () => {
+                if (controller.activeOrg?.slug) {
+                  await controller.navigateToOrganization(controller.activeOrg.slug);
                 }
               }}
             >
@@ -431,25 +535,25 @@ const OnboardingPage = () => {
           <CardHeader>
             <CardTitle>Organizations</CardTitle>
             <CardDescription>
-              {activeOrg
-                ? `Current active organization: ${activeOrg.name}`
+              {controller.activeOrg
+                ? `Current active organization: ${controller.activeOrg.name}`
                 : "No active organization selected yet."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <form
               className="space-y-4 rounded-lg border border-dashed border-border/70 p-4"
-              onSubmit={handleCreateOrganization}
+              onSubmit={controller.handleCreateOrganization}
             >
               <div className="space-y-2">
                 <Label htmlFor="organization-name">Organization name</Label>
                 <Input
                   id="organization-name"
                   maxLength={64}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => controller.setName(event.target.value)}
                   placeholder="Acme"
                   required
-                  value={name}
+                  value={controller.name}
                 />
               </div>
 
@@ -458,35 +562,39 @@ const OnboardingPage = () => {
                 <Input
                   id="organization-slug"
                   maxLength={64}
-                  onChange={(event) => setSlug(event.target.value)}
+                  onChange={(event) => controller.setSlug(event.target.value)}
                   placeholder="acme"
-                  value={slug}
+                  value={controller.slug}
                 />
                 <p className="text-xs text-muted-foreground">
                   Lowercase letters, numbers, and dashes. Leave blank to derive from the name.
                 </p>
               </div>
 
-              <Button className="w-full" disabled={createSubmitting || isLoading} type="submit">
-                {createSubmitting ? "Creating organization..." : "Create organization"}
+              <Button
+                className="w-full"
+                disabled={controller.createSubmitting || controller.isLoading}
+                type="submit"
+              >
+                {controller.createSubmitting ? "Creating organization..." : "Create organization"}
               </Button>
             </form>
 
-            {isLoading ? (
+            {controller.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading organizations...</p>
             ) : null}
 
-            {!isLoading && organizations.length === 0 ? (
+            {controller.isLoading || controller.organizations.length > 0 ? null : (
               <div className="rounded-lg border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
                 No organizations yet. Create one or accept an invitation to continue.
               </div>
-            ) : null}
+            )}
 
-            {organizations.length > 0 ? (
+            {controller.organizations.length === 0 ? null : (
               <ul className="space-y-3">
-                {organizations.map((organization) => {
-                  const isActive = activeOrg?.id === organization.id;
-                  const isSwitching = switchingOrganizationId === organization.id;
+                {controller.organizations.map((organization) => {
+                  const isActive = controller.activeOrg?.id === organization.id;
+                  const isSwitching = controller.switchingOrganizationId === organization.id;
 
                   return (
                     <li
@@ -500,20 +608,20 @@ const OnboardingPage = () => {
                       </div>
 
                       <Button
-                        disabled={isSwitching || isLoading || !emailVerified}
-                        onClick={() => {
-                          void handleSetActiveOrganization(organization);
+                        disabled={isSwitching || controller.isLoading || !emailVerified}
+                        onClick={async () => {
+                          await controller.handleSetActiveOrganization(organization);
                         }}
                         size="sm"
                         variant={isActive ? "default" : "outline"}
                       >
-                        {isSwitching ? "Opening..." : isActive ? "Open workspace" : "Set active"}
+                        {getOrganizationActionLabel(isSwitching, isActive)}
                       </Button>
                     </li>
                   );
                 })}
               </ul>
-            ) : null}
+            )}
           </CardContent>
         </Card>
 
@@ -523,20 +631,20 @@ const OnboardingPage = () => {
             <CardDescription>Accept invitations to join existing organizations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {isLoading ? (
+            {controller.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading invitations...</p>
             ) : null}
 
-            {!isLoading && pendingInvitations.length === 0 ? (
+            {controller.isLoading || controller.pendingInvitations.length > 0 ? null : (
               <div className="rounded-lg border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
                 No pending invitations.
               </div>
-            ) : null}
+            )}
 
-            {pendingInvitations.length > 0 ? (
+            {controller.pendingInvitations.length === 0 ? null : (
               <ul className="space-y-3">
-                {pendingInvitations.map((invitation) => {
-                  const isAccepting = acceptingInvitationId === invitation.id;
+                {controller.pendingInvitations.map((invitation) => {
+                  const isAccepting = controller.acceptingInvitationId === invitation.id;
 
                   return (
                     <li
@@ -554,9 +662,9 @@ const OnboardingPage = () => {
                       </div>
 
                       <Button
-                        disabled={isAccepting || isLoading || !emailVerified}
-                        onClick={() => {
-                          void handleAcceptInvitation(invitation);
+                        disabled={isAccepting || controller.isLoading || !emailVerified}
+                        onClick={async () => {
+                          await controller.handleAcceptInvitation(invitation);
                         }}
                         size="sm"
                       >
@@ -566,7 +674,7 @@ const OnboardingPage = () => {
                   );
                 })}
               </ul>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       </div>

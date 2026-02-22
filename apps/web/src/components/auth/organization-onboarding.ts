@@ -2,15 +2,12 @@ const normalizeSlugPart = (value: string): string =>
   value
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
 
 export const normalizeOrganizationSlug = (value: string): string => normalizeSlugPart(value);
 
-export const resolveCreateOrganizationSlug = (input: {
-  name: string;
-  slug: string;
-}): string => {
+export const resolveCreateOrganizationSlug = (input: { name: string; slug: string }): string => {
   const explicitSlug = normalizeOrganizationSlug(input.slug);
 
   if (explicitSlug.length > 0) {

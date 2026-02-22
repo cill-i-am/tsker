@@ -1,18 +1,22 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { AuthCard } from "@/components/auth/auth-card";
-import { type AuthStatusState, AuthStatus } from "@/components/auth/auth-status";
+import { AuthStatus } from "@/components/auth/auth-status";
+import type { AuthStatusState } from "@/components/auth/auth-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUpEmail } from "@/lib/auth-client";
 import { sessionQueryOptions } from "@/lib/session-query";
 
+const isSuccessfulStatus = (status: number) => status >= 200 && status < 300;
+
 const getErrorMessage = (payload: unknown): string => {
   if (payload && typeof payload === "object" && "message" in payload) {
-    const message = payload.message;
+    const { message } = payload;
 
     return typeof message === "string" ? message : "Sign up failed.";
   }
@@ -20,56 +24,134 @@ const getErrorMessage = (payload: unknown): string => {
   return "Sign up failed.";
 };
 
+const runWithSubmitting = async (
+  setIsSubmitting: (value: boolean) => void,
+  operation: () => Promise<void>,
+) => {
+  setIsSubmitting(true);
+
+  try {
+    await operation();
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+const setSignUpFailureStatus = (
+  setStatus: (value: AuthStatusState | null) => void,
+  description: string,
+) => {
+  setStatus({
+    description,
+    title: "Unable to create account",
+    variant: "destructive",
+  });
+};
+
+const setPasswordMismatchStatus = (setStatus: (value: AuthStatusState | null) => void) => {
+  setStatus({
+    description: "Passwords do not match. Enter matching values and try again.",
+    title: "Password mismatch",
+    variant: "destructive",
+  });
+};
+
+const refreshSessionAndNavigate = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  navigate: ReturnType<typeof useNavigate>,
+) => {
+  const sessionOptions = sessionQueryOptions();
+  await queryClient.invalidateQueries({ queryKey: sessionOptions.queryKey });
+  const refreshedSession = await queryClient.fetchQuery(sessionOptions);
+  await navigate({ to: refreshedSession.authenticated ? "/onboarding" : "/login" });
+};
+
+interface SignUpFormValues {
+  confirmPassword: string;
+  email: string;
+  name: string;
+  password: string;
+}
+
+const defaultSignUpFormValues: SignUpFormValues = {
+  confirmPassword: "password123!",
+  email: "dev@localtest.me",
+  name: "Local User",
+  password: "password123!",
+};
+
+const hasPasswordMismatch = (
+  formValues: SignUpFormValues,
+  setStatus: (value: AuthStatusState | null) => void,
+) => {
+  if (formValues.password === formValues.confirmPassword) {
+    return false;
+  }
+
+  setPasswordMismatchStatus(setStatus);
+  return true;
+};
+
+const submitSignUpRequest = async (
+  formValues: SignUpFormValues,
+  setStatus: (value: AuthStatusState | null) => void,
+) => {
+  try {
+    return await signUpEmail({
+      email: formValues.email,
+      name: formValues.name,
+      password: formValues.password,
+    });
+  } catch (error: unknown) {
+    const description = error instanceof Error ? error.message : "Unexpected sign up error.";
+    setSignUpFailureStatus(setStatus, description);
+    return null;
+  }
+};
+
+const handleSignUpResult = async (
+  result: { body: unknown; status: number },
+  queryClient: ReturnType<typeof useQueryClient>,
+  navigate: ReturnType<typeof useNavigate>,
+  setStatus: (value: AuthStatusState | null) => void,
+) => {
+  if (isSuccessfulStatus(result.status)) {
+    await refreshSessionAndNavigate(queryClient, navigate);
+    return;
+  }
+
+  setSignUpFailureStatus(setStatus, getErrorMessage(result.body));
+};
+
 const SignUpPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [name, setName] = useState("Local User");
-  const [email, setEmail] = useState("dev@localtest.me");
-  const [password, setPassword] = useState("password123!");
-  const [confirmPassword, setConfirmPassword] = useState("password123!");
+  const [formValues, setFormValues] = useState<SignUpFormValues>(defaultSignUpFormValues);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<AuthStatusState | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const updateFormValue = (key: keyof SignUpFormValues, value: string) => {
+    setFormValues((current) => ({ ...current, [key]: value }));
+  };
 
-    if (password !== confirmPassword) {
-      setStatus({
-        description: "Passwords do not match. Enter matching values and try again.",
-        title: "Password mismatch",
-        variant: "destructive",
-      });
+  const submitSignUp = async () => {
+    if (hasPasswordMismatch(formValues, setStatus)) {
       return;
     }
 
-    setIsSubmitting(true);
     setStatus(null);
+    const result = await submitSignUpRequest(formValues, setStatus);
 
-    try {
-      const result = await signUpEmail({ email, name, password });
-
-      if (result.status >= 200 && result.status < 300) {
-        const sessionOptions = sessionQueryOptions();
-        await queryClient.invalidateQueries({ queryKey: sessionOptions.queryKey });
-        const refreshedSession = await queryClient.fetchQuery(sessionOptions);
-        await navigate({ to: refreshedSession.authenticated ? "/onboarding" : "/login" });
-        return;
-      }
-
-      setStatus({
-        description: getErrorMessage(result.body),
-        title: "Unable to create account",
-        variant: "destructive",
-      });
-    } catch (error) {
-      setStatus({
-        description: error instanceof Error ? error.message : "Unexpected sign up error.",
-        title: "Unable to create account",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (!result) {
+      return;
     }
+
+    await handleSignUpResult(result, queryClient, navigate, setStatus);
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await runWithSubmitting(setIsSubmitting, submitSignUp);
   };
 
   return (
@@ -92,8 +174,8 @@ const SignUpPage = () => {
             id="signup-name"
             autoComplete="name"
             required
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            value={formValues.name}
+            onChange={(event) => updateFormValue("name", event.target.value)}
           />
         </div>
 
@@ -104,8 +186,8 @@ const SignUpPage = () => {
             autoComplete="email"
             required
             type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            value={formValues.email}
+            onChange={(event) => updateFormValue("email", event.target.value)}
           />
         </div>
 
@@ -116,8 +198,8 @@ const SignUpPage = () => {
             autoComplete="new-password"
             required
             type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            value={formValues.password}
+            onChange={(event) => updateFormValue("password", event.target.value)}
           />
         </div>
 
@@ -128,8 +210,8 @@ const SignUpPage = () => {
             autoComplete="new-password"
             required
             type="password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
+            value={formValues.confirmPassword}
+            onChange={(event) => updateFormValue("confirmPassword", event.target.value)}
           />
         </div>
 

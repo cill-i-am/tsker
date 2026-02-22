@@ -1,6 +1,6 @@
 import { resolveAppEntryDestination } from "./app-entry";
 
-describe(resolveAppEntryDestination, () => {
+describe("app entry destination resolution", () => {
   it("routes unauthenticated users to login", () => {
     expect(
       resolveAppEntryDestination({

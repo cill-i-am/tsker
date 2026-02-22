@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { authClient, signInEmail, signOut, signUpEmail } from "./auth-client";
+import type { AuthMutationResult } from "./auth-client";
 
 const {
   acceptInvitationRequestMock,
@@ -18,7 +19,7 @@ const {
   useListOrganizationsRequestMock: vi.fn(),
 }));
 
-vi.mock("better-auth/react", () => ({
+vi.mock<Record<string, unknown>>(import("better-auth/react"), () => ({
   createAuthClient: vi.fn(() => ({
     acceptInvitation: acceptInvitationRequestMock,
     createOrganization: createOrganizationRequestMock,
@@ -35,13 +36,15 @@ vi.mock("better-auth/react", () => ({
   })),
 }));
 
-import {
-  authClient,
-  signInEmail,
-  signOut,
-  signUpEmail,
-  type AuthMutationResult,
-} from "./auth-client";
+const resetMocks = () => {
+  createOrganizationRequestMock.mockReset();
+  acceptInvitationRequestMock.mockReset();
+  signUpEmailRequestMock.mockReset();
+  signInEmailRequestMock.mockReset();
+  signOutRequestMock.mockReset();
+  useListOrganizationsRequestMock.mockReset();
+  useActiveOrganizationRequestMock.mockReset();
+};
 
 describe("auth-client auth actions", () => {
   const organizationActionClient = authClient as typeof authClient & {
@@ -49,17 +52,8 @@ describe("auth-client auth actions", () => {
     createOrganization: (input: { name: string; slug: string }) => Promise<unknown>;
   };
 
-  beforeEach(() => {
-    createOrganizationRequestMock.mockReset();
-    acceptInvitationRequestMock.mockReset();
-    signUpEmailRequestMock.mockReset();
-    signInEmailRequestMock.mockReset();
-    signOutRequestMock.mockReset();
-    useListOrganizationsRequestMock.mockReset();
-    useActiveOrganizationRequestMock.mockReset();
-  });
-
   it("maps successful sign-in to a 2xx-compatible result", async () => {
+    resetMocks();
     signInEmailRequestMock.mockResolvedValueOnce({
       data: {
         email: "user@example.com",
@@ -85,6 +79,7 @@ describe("auth-client auth actions", () => {
   });
 
   it("maps Better Auth error responses to status/body", async () => {
+    resetMocks();
     signUpEmailRequestMock.mockResolvedValueOnce({
       data: null,
       error: {
@@ -109,6 +104,7 @@ describe("auth-client auth actions", () => {
   });
 
   it("maps sign-out responses", async () => {
+    resetMocks();
     signOutRequestMock.mockResolvedValueOnce({
       data: null,
       error: null,
@@ -116,7 +112,7 @@ describe("auth-client auth actions", () => {
 
     const result = await signOut();
 
-    expect(signOutRequestMock).toHaveBeenCalledTimes(1);
+    expect(signOutRequestMock).toHaveBeenCalledOnce();
     expect(result).toStrictEqual<AuthMutationResult>({
       body: null,
       status: 200,
@@ -124,6 +120,7 @@ describe("auth-client auth actions", () => {
   });
 
   it("wires create-organization action input through the auth client", async () => {
+    resetMocks();
     createOrganizationRequestMock.mockResolvedValueOnce({
       data: {
         id: "org_1",
@@ -142,7 +139,7 @@ describe("auth-client auth actions", () => {
       name: "Acme",
       slug: "acme",
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       data: {
         id: "org_1",
         name: "Acme",
@@ -153,6 +150,7 @@ describe("auth-client auth actions", () => {
   });
 
   it("wires accept-invitation action input through the auth client", async () => {
+    resetMocks();
     acceptInvitationRequestMock.mockResolvedValueOnce({
       data: {
         id: "inv_1",
@@ -167,7 +165,7 @@ describe("auth-client auth actions", () => {
     expect(acceptInvitationRequestMock).toHaveBeenCalledWith({
       invitationId: "inv_1",
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       data: {
         id: "inv_1",
       },
@@ -176,10 +174,11 @@ describe("auth-client auth actions", () => {
   });
 
   it("exposes onboarding organization hooks from the auth client", () => {
+    resetMocks();
     authClient.useListOrganizations();
     authClient.useActiveOrganization();
 
-    expect(useListOrganizationsRequestMock).toHaveBeenCalledTimes(1);
-    expect(useActiveOrganizationRequestMock).toHaveBeenCalledTimes(1);
+    expect(useListOrganizationsRequestMock).toHaveBeenCalledOnce();
+    expect(useActiveOrganizationRequestMock).toHaveBeenCalledOnce();
   });
 });

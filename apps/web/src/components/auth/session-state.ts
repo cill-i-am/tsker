@@ -8,7 +8,7 @@ const getSessionUser = (payload: unknown): Record<string, unknown> | null => {
     return null;
   }
 
-  const user = payload.user;
+  const { user } = payload;
 
   return isRecord(user) ? user : null;
 };
