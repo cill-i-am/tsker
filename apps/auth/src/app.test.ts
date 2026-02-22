@@ -174,7 +174,19 @@ const getSession = (handler: WebHandler, cookieHeader?: string) =>
           }
         : {
             origin: trustedOrigin,
-          },
+      },
+    }),
+  );
+
+const preflightAuthRoute = (handler: WebHandler, path: string, method: string) =>
+  handler(
+    new Request(`${authBaseUrl}${path}`, {
+      headers: {
+        "access-control-request-headers": "content-type",
+        "access-control-request-method": method,
+        origin: trustedOrigin,
+      },
+      method: "OPTIONS",
     }),
   );
 
@@ -261,20 +273,37 @@ describe("auth routes", () => {
     const { handler, dispose } = await createTestServer(baseEnv);
 
     try {
-      const response = await handler(
-        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          headers: {
-            "access-control-request-headers": "content-type",
-            "access-control-request-method": "POST",
-            origin: trustedOrigin,
-          },
-          method: "OPTIONS",
-        }),
-      );
+      const response = await preflightAuthRoute(handler, "/api/auth/sign-in/email", "POST");
 
       expect(response.status).toBe(204);
       expect(response.headers.get("access-control-allow-origin")).toBe(trustedOrigin);
       expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts password reset endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(handler, "/api/auth/request-password-reset", "POST");
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts verification endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(handler, "/api/auth/send-verification-email", "POST");
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
     } finally {
       await dispose();
     }

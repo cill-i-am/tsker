@@ -1,4 +1,4 @@
-import { Effect, Exit, Layer } from "effect";
+import { Effect, Exit, Layer, Option } from "effect";
 
 import { AppConfigService, makeConfigProvider } from "@/config/app-config-service.js";
 
@@ -24,6 +24,33 @@ describe("app config service", () => {
     expect(config.PORT).toBe(3003);
     expect(config.APP_ENV).toBe("local");
     expect(config.LOG_LEVEL).toBe("info");
+    expect(Option.isNone(config.RESEND_API_KEY)).toBeTruthy();
+    expect(Option.isNone(config.RESEND_FROM_EMAIL)).toBeTruthy();
+    expect(Option.isNone(config.WEB_BASE_URL)).toBeTruthy();
+  });
+
+  it("decodes resend and web env vars when provided", async () => {
+    const config = await Effect.runPromise(
+      loadConfig({
+        ...requiredAuthEnv,
+        RESEND_API_KEY: "re_test_123",
+        RESEND_FROM_EMAIL: "auth@example.com",
+        WEB_BASE_URL: "https://app.localtest.me",
+      }),
+    );
+
+    expect(Option.isSome(config.RESEND_API_KEY)).toBeTruthy();
+    expect(Option.isSome(config.RESEND_FROM_EMAIL)).toBeTruthy();
+    expect(Option.isSome(config.WEB_BASE_URL)).toBeTruthy();
+    if (Option.isSome(config.RESEND_API_KEY)) {
+      expect(config.RESEND_API_KEY.value).toBe("re_test_123");
+    }
+    if (Option.isSome(config.RESEND_FROM_EMAIL)) {
+      expect(config.RESEND_FROM_EMAIL.value).toBe("auth@example.com");
+    }
+    if (Option.isSome(config.WEB_BASE_URL)) {
+      expect(config.WEB_BASE_URL.value).toBe("https://app.localtest.me");
+    }
   });
 
   it("allows production without telemetry env", async () => {
