@@ -10,11 +10,28 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProtectedRouteImport } from './routes/protected'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrgSlugRouteImport } from './routes/org.$slug'
+import { Route as AuthSignupRouteImport } from './routes/_auth.signup'
+import { Route as AuthResetPasswordRouteImport } from './routes/_auth.reset-password'
+import { Route as AuthLoginRouteImport } from './routes/_auth.login'
+import { Route as AuthForgotPasswordRouteImport } from './routes/_auth.forgot-password'
+import { Route as OrgSlugIndexRouteImport } from './routes/org.$slug.index'
 
 const ProtectedRoute = ProtectedRouteImport.update({
   id: '/protected',
   path: '/protected',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -22,31 +39,113 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgSlugRoute = OrgSlugRouteImport.update({
+  id: '/org/$slug',
+  path: '/org/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const OrgSlugIndexRoute = OrgSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrgSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
   '/protected': typeof ProtectedRoute
+  '/forgot-password': typeof AuthForgotPasswordRoute
+  '/login': typeof AuthLoginRoute
+  '/reset-password': typeof AuthResetPasswordRoute
+  '/signup': typeof AuthSignupRoute
+  '/org/$slug': typeof OrgSlugRouteWithChildren
+  '/org/$slug/': typeof OrgSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
   '/protected': typeof ProtectedRoute
+  '/forgot-password': typeof AuthForgotPasswordRoute
+  '/login': typeof AuthLoginRoute
+  '/reset-password': typeof AuthResetPasswordRoute
+  '/signup': typeof AuthSignupRoute
+  '/org/$slug': typeof OrgSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
+  '/onboarding': typeof OnboardingRoute
   '/protected': typeof ProtectedRoute
+  '/_auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/_auth/login': typeof AuthLoginRoute
+  '/_auth/reset-password': typeof AuthResetPasswordRoute
+  '/_auth/signup': typeof AuthSignupRoute
+  '/org/$slug': typeof OrgSlugRouteWithChildren
+  '/org/$slug/': typeof OrgSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/protected'
+  fullPaths:
+    | '/'
+    | '/onboarding'
+    | '/protected'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/org/$slug'
+    | '/org/$slug/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/protected'
-  id: '__root__' | '/' | '/protected'
+  to:
+    | '/'
+    | '/onboarding'
+    | '/protected'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/org/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/_auth'
+    | '/onboarding'
+    | '/protected'
+    | '/_auth/forgot-password'
+    | '/_auth/login'
+    | '/_auth/reset-password'
+    | '/_auth/signup'
+    | '/org/$slug'
+    | '/org/$slug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  OnboardingRoute: typeof OnboardingRoute
   ProtectedRoute: typeof ProtectedRoute
+  OrgSlugRoute: typeof OrgSlugRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +157,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -65,12 +178,84 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/$slug': {
+      id: '/org/$slug'
+      path: '/org/$slug'
+      fullPath: '/org/$slug'
+      preLoaderRoute: typeof OrgSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth/signup': {
+      id: '/_auth/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/reset-password': {
+      id: '/_auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/login': {
+      id: '/_auth/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/forgot-password': {
+      id: '/_auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/org/$slug/': {
+      id: '/org/$slug/'
+      path: '/'
+      fullPath: '/org/$slug/'
+      preLoaderRoute: typeof OrgSlugIndexRouteImport
+      parentRoute: typeof OrgSlugRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+  AuthLoginRoute: AuthLoginRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+  AuthSignupRoute: AuthSignupRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
+interface OrgSlugRouteChildren {
+  OrgSlugIndexRoute: typeof OrgSlugIndexRoute
+}
+
+const OrgSlugRouteChildren: OrgSlugRouteChildren = {
+  OrgSlugIndexRoute: OrgSlugIndexRoute,
+}
+
+const OrgSlugRouteWithChildren =
+  OrgSlugRoute._addFileChildren(OrgSlugRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRouteWithChildren,
+  OnboardingRoute: OnboardingRoute,
   ProtectedRoute: ProtectedRoute,
+  OrgSlugRoute: OrgSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
