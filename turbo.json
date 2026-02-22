@@ -3,12 +3,15 @@
   "ui": "tui",
   "globalEnv": [
     "APP_ENV",
+    "AUTH_PORT",
     "DATABASE_URL",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
     "AUTH_TRUSTED_ORIGINS",
     "AUTH_COOKIE_DOMAIN",
+    "AUTH_URL",
     "VITE_API_URL",
+    "VITE_AUTH_URL",
     "RUN_DB_TESTS"
   ],
   "tasks": {

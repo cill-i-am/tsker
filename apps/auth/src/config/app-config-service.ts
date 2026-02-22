@@ -27,6 +27,8 @@ export class AppConfigService extends Effect.Service<AppConfigService>()("AppCon
 
     yield* Effect.log("Config loaded", {
       appEnv: config.APP_ENV,
+      authCookieDomain: config.AUTH_COOKIE_DOMAIN,
+      authUrl: config.BETTER_AUTH_URL,
       logLevel: config.LOG_LEVEL,
       port: config.PORT,
     });

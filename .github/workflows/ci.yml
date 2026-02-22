@@ -12,12 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_ENV: local
+      AUTH_PORT: "3003"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/tsker
       BETTER_AUTH_SECRET: test-secret-test-secret-test-secret!
-      BETTER_AUTH_URL: http://api.localtest.me:3002
+      BETTER_AUTH_URL: http://auth.localtest.me:3003
       AUTH_TRUSTED_ORIGINS: http://app.localtest.me:3000
       AUTH_COOKIE_DOMAIN: .localtest.me
+      AUTH_URL: http://auth.localtest.me:3003
       VITE_API_URL: http://api.localtest.me:3002
+      VITE_AUTH_URL: http://auth.localtest.me:3003
       RUN_DB_TESTS: "true"
     services:
       postgres:
@@ -77,12 +80,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_ENV: local
+      AUTH_PORT: "3003"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/tsker
       BETTER_AUTH_SECRET: test-secret-test-secret-test-secret!
-      BETTER_AUTH_URL: http://api.localtest.me:3002
+      BETTER_AUTH_URL: http://auth.localtest.me:3003
       AUTH_TRUSTED_ORIGINS: http://app.localtest.me:3000
       AUTH_COOKIE_DOMAIN: .localtest.me
+      AUTH_URL: http://auth.localtest.me:3003
       VITE_API_URL: http://api.localtest.me:3002
+      VITE_AUTH_URL: http://auth.localtest.me:3003
     services:
       postgres:
         image: postgres:16

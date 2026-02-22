@@ -9,8 +9,8 @@ const ProtectedPage = () => {
     <main className="mx-auto max-w-3xl p-6 text-white">
       <h2 className="text-2xl font-semibold">Protected Session Check</h2>
       <p className="mt-2 text-gray-300">
-        This route does a server-side call to <code>/api/auth/get-session</code> while forwarding
-        the incoming cookie header.
+        This route does a server-side call to the auth origin <code>/api/auth/get-session</code>{" "}
+        while forwarding the incoming cookie header.
       </p>
 
       <div className="mt-6 rounded border border-slate-700 bg-slate-900 p-4">

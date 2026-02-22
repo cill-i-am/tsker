@@ -21,7 +21,7 @@ describe("auth api sign-in", () => {
       await signInEmail(input);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringMatching(/\/api\/auth\/sign-in\/email$/),
+        "http://auth.localtest.me:3003/api/auth/sign-in/email",
         expect.objectContaining({
           body: JSON.stringify(input),
           credentials: "include",

@@ -1,11 +1,12 @@
 # tsker
 
 This repository contains an Effect-based API, a TanStack Start web frontend, and
-shared tooling/data packages.
+an Hono-based auth service, and shared tooling/data packages.
 
 ## Workspace layout
 
 - `apps/api`: Effect-based API service
+- `apps/auth`: Better Auth service on Hono
 - `apps/web`: TanStack Start frontend
 - `packages/db`: Postgres + Drizzle + Effect SQL integration
 - `packages/typescript-config`: shared TypeScript configuration
@@ -41,4 +42,5 @@ pnpm --filter api dev
 - Production should provide `DATABASE_URL` via environment (for example,
   PlanetScale Postgres or an equivalent managed PostgreSQL provider).
 - You can override any local defaults by exporting env vars before `pnpm dev`
-  (for example `DATABASE_URL`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`).
+  (for example `DATABASE_URL`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`,
+  `VITE_API_URL`, `VITE_AUTH_URL`).

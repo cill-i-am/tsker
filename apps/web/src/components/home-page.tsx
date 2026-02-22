@@ -30,7 +30,8 @@ export const HomePage = () => {
     <main className="mx-auto max-w-4xl p-6 text-white">
       <h2 className="text-3xl font-semibold">Auth Session Validation</h2>
       <p className="mt-2 text-slate-300">
-        This TanStack Start app uses cookie-based Better Auth sessions against a sibling API origin.
+        This TanStack Start app uses cookie-based Better Auth sessions against a sibling auth
+        origin.
       </p>
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
