@@ -2,6 +2,7 @@ import { createAuthDrizzleClient } from "@repo/db/auth-client";
 import { authSchema } from "@repo/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { organization } from "better-auth/plugins/organization";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { Option } from "effect";
 import type { Pool } from "pg";
@@ -9,6 +10,7 @@ import type { Pool } from "pg";
 import type { AppConfigType } from "@/config/app-config.js";
 
 const resendEmailEndpoint = "https://api.resend.com/emails";
+const invitationPath = "/onboarding";
 
 const parseTrustedOrigins = (value: string): string[] =>
   value
@@ -40,9 +42,23 @@ const withWebCallbackUrl = (rawUrl: string, webBaseUrl: string): string => {
   }
 };
 
+const resolveWebBaseUrl = (config: AppConfigType) =>
+  toOptionalString(config.WEB_BASE_URL) ?? config.BETTER_AUTH_URL;
+
+const buildInvitationUrl = (webBaseUrl: string, invitationId: string): string => {
+  try {
+    const url = new URL(invitationPath, webBaseUrl);
+    url.searchParams.set("invitationId", invitationId);
+    return url.toString();
+  } catch {
+    return `${webBaseUrl.replace(/\/$/, "")}${invitationPath}?invitationId=${encodeURIComponent(invitationId)}`;
+  }
+};
+
 const buildEmailContent = (
-  type: "password_reset" | "email_verification",
+  type: "password_reset" | "email_verification" | "organization_invitation",
   actionUrl: string,
+  organizationName?: string,
 ): {
   html: string;
   subject: string;
@@ -53,6 +69,17 @@ const buildEmailContent = (
       html: `<p>Reset your password for tsker by clicking <a href="${actionUrl}">this link</a>.</p>`,
       subject: "Reset your tsker password",
       text: `Reset your password for tsker: ${actionUrl}`,
+    };
+  }
+
+  if (type === "organization_invitation") {
+    const destination = organizationName ? ` to join ${organizationName}` : "";
+    return {
+      html: `<p>You have been invited${destination} on tsker. Accept the invitation by clicking <a href="${actionUrl}">this link</a>.</p>`,
+      subject: organizationName
+        ? `You're invited to ${organizationName} on tsker`
+        : "You're invited to a tsker organization",
+      text: `You have been invited${destination} on tsker: ${actionUrl}`,
     };
   }
 
@@ -67,13 +94,14 @@ const sendAuthEmail = async (
   config: AppConfigType,
   payload: {
     actionUrl: string;
+    organizationName?: string;
     to: string;
-    type: "password_reset" | "email_verification";
+    type: "password_reset" | "email_verification" | "organization_invitation";
   },
 ) => {
   const resendApiKey = toOptionalString(config.RESEND_API_KEY);
   const resendFromEmail = toOptionalString(config.RESEND_FROM_EMAIL);
-  const webBaseUrl = toOptionalString(config.WEB_BASE_URL) ?? config.BETTER_AUTH_URL;
+  const webBaseUrl = resolveWebBaseUrl(config);
   const actionUrl = withWebCallbackUrl(payload.actionUrl, webBaseUrl);
 
   if (!resendApiKey || !resendFromEmail) {
@@ -91,7 +119,7 @@ const sendAuthEmail = async (
     return;
   }
 
-  const content = buildEmailContent(payload.type, actionUrl);
+  const content = buildEmailContent(payload.type, actionUrl, payload.organizationName);
   const response = await fetch(resendEmailEndpoint, {
     body: JSON.stringify({
       from: resendFromEmail,
@@ -157,7 +185,39 @@ export const makeAuth = (config: AppConfigType, database: AuthDatabase): AuthIns
         });
       },
     },
-    plugins: [tanstackStartCookies()],
+    plugins: [
+      organization({
+        requireEmailVerificationOnInvitation: true,
+        schema: {
+          invitation: {
+            modelName: "invitation",
+          },
+          member: {
+            modelName: "member",
+          },
+          organization: {
+            modelName: "organization",
+          },
+          session: {
+            fields: {
+              activeOrganizationId: "activeOrganizationId",
+            },
+          },
+        },
+        sendInvitationEmail: async (data) => {
+          await sendAuthEmail(config, {
+            actionUrl: buildInvitationUrl(resolveWebBaseUrl(config), data.id),
+            organizationName: data.organization.name,
+            to: data.email,
+            type: "organization_invitation",
+          });
+        },
+        teams: {
+          enabled: false,
+        },
+      }),
+      tanstackStartCookies(),
+    ],
     rateLimit: {
       enabled: config.APP_ENV !== "local",
       max: 100,

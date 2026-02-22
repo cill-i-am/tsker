@@ -39,12 +39,14 @@ const dbSchemaStatements = [
     "user_id" text not null references "user"("id") on delete cascade,
     "token" text not null,
     "expires_at" timestamptz not null,
+    "active_organization_id" text,
     "ip_address" text,
     "user_agent" text,
     "created_at" timestamptz not null default now(),
     "updated_at" timestamptz not null default now()
   )`,
   `create unique index if not exists "session_token_unique" on "session" ("token")`,
+  `create index if not exists "session_active_organization_id_idx" on "session" ("active_organization_id")`,
   `create index if not exists "session_user_id_idx" on "session" ("user_id")`,
   `create table if not exists "account" (
     "id" text primary key,
@@ -72,6 +74,40 @@ const dbSchemaStatements = [
     "updated_at" timestamptz not null default now()
   )`,
   `create index if not exists "verification_identifier_idx" on "verification" ("identifier")`,
+  `create table if not exists "organization" (
+    "id" text primary key,
+    "name" text not null,
+    "slug" text not null,
+    "logo" text,
+    "metadata" text,
+    "created_at" timestamptz not null default now(),
+    "updated_at" timestamptz not null default now()
+  )`,
+  `create unique index if not exists "organization_slug_unique" on "organization" ("slug")`,
+  `create table if not exists "member" (
+    "id" text primary key,
+    "organization_id" text not null references "organization"("id") on delete cascade,
+    "user_id" text not null references "user"("id") on delete cascade,
+    "role" text not null default 'member',
+    "created_at" timestamptz not null default now()
+  )`,
+  `create unique index if not exists "member_organization_user_unique" on "member" ("organization_id", "user_id")`,
+  `create index if not exists "member_organization_id_idx" on "member" ("organization_id")`,
+  `create index if not exists "member_user_id_idx" on "member" ("user_id")`,
+  `create table if not exists "invitation" (
+    "id" text primary key,
+    "organization_id" text not null references "organization"("id") on delete cascade,
+    "email" text not null,
+    "role" text not null,
+    "status" text not null default 'pending',
+    "expires_at" timestamptz not null,
+    "inviter_id" text not null references "user"("id") on delete cascade,
+    "created_at" timestamptz not null default now(),
+    "updated_at" timestamptz not null default now()
+  )`,
+  `create index if not exists "invitation_email_idx" on "invitation" ("email")`,
+  `create index if not exists "invitation_organization_id_idx" on "invitation" ("organization_id")`,
+  `create index if not exists "invitation_status_idx" on "invitation" ("status")`,
 ];
 
 const setupAuthTables = async () => {
@@ -88,7 +124,9 @@ const setupAuthTables = async () => {
 const clearAuthTables = async () => {
   const pool = createAuthPool(baseEnv.DATABASE_URL);
   try {
-    await pool.query(`truncate table "verification", "account", "session", "user" cascade`);
+    await pool.query(
+      `truncate table "invitation", "member", "organization", "verification", "account", "session", "user" cascade`,
+    );
   } finally {
     await pool.end();
   }
@@ -175,6 +213,35 @@ const getSession = (handler: WebHandler, cookieHeader?: string) =>
         : {
             origin: trustedOrigin,
       },
+    }),
+  );
+
+const createOrganization = (
+  handler: WebHandler,
+  {
+    cookieHeader,
+    name,
+    origin,
+    slug,
+  }: {
+    cookieHeader: string;
+    name: string;
+    origin: string;
+    slug: string;
+  },
+) =>
+  handler(
+    new Request(`${authBaseUrl}/api/auth/organization/create`, {
+      body: JSON.stringify({
+        name,
+        slug,
+      }),
+      headers: {
+        cookie: cookieHeader,
+        "content-type": "application/json",
+        origin,
+      },
+      method: "POST",
     }),
   );
 
@@ -304,6 +371,30 @@ describe("auth routes", () => {
 
       expect(response.status).not.toBe(404);
       expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization create endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/organization/create`, {
+          body: JSON.stringify({
+            name: "Mount Check Organization",
+            slug: `mount-check-${Date.now()}`,
+          }),
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin,
+          },
+          method: "POST",
+        }),
+      );
+
+      expect(response.status).not.toBe(404);
     } finally {
       await dispose();
     }
@@ -448,6 +539,43 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
       } | null;
       expect(unauthenticatedSessionResponse.status).toBe(200);
       expect(getSessionValue(unauthenticatedSessionBody)).toBeNull();
+    });
+  });
+
+  it("creates organizations with trusted origin and authenticated cookie flow", async () => {
+    await withDbServer(async (handler) => {
+      const email = `org-flow-${Date.now()}@example.com`;
+      const signUpResponse = await signUpEmail(handler, {
+        email,
+        name: "Organization Flow User",
+        origin: trustedOrigin,
+        password: "password123!",
+      });
+
+      expect(signUpResponse.status).toBeLessThan(400);
+
+      const setCookieHeaders = readSetCookieHeaders(signUpResponse);
+      expect(setCookieHeaders.length).toBeGreaterThan(0);
+
+      const cookieHeader = setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; ");
+      const slug = `org-flow-${Date.now()}`;
+      const createOrganizationResponse = await createOrganization(handler, {
+        cookieHeader,
+        name: "Organization Flow Org",
+        origin: trustedOrigin,
+        slug,
+      });
+      const body = (await createOrganizationResponse.json().catch(() => null)) as {
+        id?: string;
+        name?: string;
+        slug?: string;
+      } | null;
+
+      expect(createOrganizationResponse.status).not.toBe(404);
+      expect(createOrganizationResponse.status).toBe(200);
+      expect(body?.id).toEqual(expect.any(String));
+      expect(body?.name).toBe("Organization Flow Org");
+      expect(body?.slug).toBe(slug);
     });
   });
 });
