@@ -2,6 +2,20 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORTLESS_BIN="$ROOT_DIR/node_modules/.bin/portless"
+
+required_vars=(
+  APP_ENV
+  AUTH_COOKIE_DOMAIN
+  AUTH_TRUSTED_ORIGINS
+  AUTH_URL
+  BETTER_AUTH_SECRET
+  BETTER_AUTH_URL
+  DATABASE_URL
+  LOG_LEVEL
+  VITE_API_URL
+  VITE_AUTH_URL
+)
 
 load_env_file() {
   local file="$1"
@@ -25,28 +39,47 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! "$ROOT_DIR/node_modules/.bin/portless" --version >/dev/null 2>&1; then
+os_name="$(uname -s 2>/dev/null || echo unknown)"
+case "$os_name" in
+Darwin | Linux)
+  portless_supported_os=true
+  ;;
+*)
+  portless_supported_os=false
+  ;;
+esac
+
+if [[ ! -x "$PORTLESS_BIN" ]]; then
+  echo "Portless is required for local development."
+  if [[ "$portless_supported_os" == false ]]; then
+    echo "Unsupported operating system: ${os_name}"
+    echo "Use macOS, Linux, or WSL2 on Windows to run this workflow."
+  else
+    echo "Install workspace dependencies with: pnpm install"
+  fi
+  exit 1
+fi
+
+if ! "$PORTLESS_BIN" --version >/dev/null 2>&1; then
   echo "Portless is required for local development."
   echo "Install workspace dependencies with: pnpm install"
   exit 1
 fi
 
+declare -A shell_env_overrides=()
+for required_var in "${required_vars[@]}"; do
+  if [[ ${!required_var+x} == x ]]; then
+    shell_env_overrides[$required_var]="${!required_var}"
+  fi
+done
+
 load_env_file "$ROOT_DIR/.env.example"
 load_env_file "$ROOT_DIR/.env"
 load_env_file "$ROOT_DIR/.env.local"
 
-required_vars=(
-  APP_ENV
-  AUTH_COOKIE_DOMAIN
-  AUTH_TRUSTED_ORIGINS
-  AUTH_URL
-  BETTER_AUTH_SECRET
-  BETTER_AUTH_URL
-  DATABASE_URL
-  LOG_LEVEL
-  VITE_API_URL
-  VITE_AUTH_URL
-)
+for required_var in "${!shell_env_overrides[@]}"; do
+  export "$required_var=${shell_env_overrides[$required_var]}"
+done
 
 for required_var in "${required_vars[@]}"; do
   if [[ -z "${!required_var:-}" ]]; then

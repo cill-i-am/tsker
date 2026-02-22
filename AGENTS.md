@@ -43,6 +43,7 @@ Notes:
 
 - `pnpm dev` uses workspace-installed `portless` from root devDependencies.
 - `pnpm dev` loads defaults from `.env.example`, then overrides from `.env` and `.env.local`.
+- Shell-exported env vars override `.env*` values during `pnpm dev`.
 
 ### Local database
 

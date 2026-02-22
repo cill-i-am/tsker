@@ -51,5 +51,6 @@ Default Portless dev URLs:
 - Override local defaults in `.env` or `.env.local` (both are loaded by
   `scripts/dev.sh`), for example `DATABASE_URL`, `BETTER_AUTH_URL`,
   `AUTH_TRUSTED_ORIGINS`, `VITE_API_URL`, `VITE_AUTH_URL`.
+- Shell-exported variables take precedence over `.env*` values.
 - Portless is installed as a root dev dependency and is available after
   `pnpm install`.

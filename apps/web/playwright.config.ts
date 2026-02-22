@@ -29,7 +29,7 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         APP_ENV: process.env.APP_ENV ?? 'local',
-        PORT: process.env.API_PORT ?? '3002',
+        PORT: process.env.API_PORT ?? process.env.PORT ?? '3002',
       },
     },
     {
