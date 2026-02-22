@@ -42,6 +42,7 @@ pnpm build
 Notes:
 
 - `pnpm dev` uses workspace-installed `portless` from root devDependencies.
+- `pnpm dev` expects Bash 4+ because `scripts/dev.sh` uses associative arrays (`declare -A`); on macOS use Homebrew Bash (`/opt/homebrew/bin/bash`) instead of the default `/bin/bash` 3.2.
 - `pnpm dev` loads defaults from `.env.example`, then overrides from `.env` and `.env.local`.
 - Shell-exported env vars override `.env*` values during `pnpm dev`.
 
