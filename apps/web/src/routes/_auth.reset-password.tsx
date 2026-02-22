@@ -1,12 +1,14 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { AuthCard } from "@/components/auth/auth-card";
-import { postAuthRequest } from "@/components/auth/auth-request";
-import { type AuthStatusState, AuthStatus } from "@/components/auth/auth-status";
+import { AuthStatus } from "@/components/auth/auth-status";
+import type { AuthStatusState } from "@/components/auth/auth-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resetPassword } from "@/lib/auth-client";
 
 interface ResetPasswordSearch {
   token?: string;
@@ -46,9 +48,8 @@ const ResetPasswordPage = () => {
     setStatus(null);
 
     try {
-      const result = await postAuthRequest("/api/auth/reset-password", {
+      const result = await resetPassword({
         newPassword: password,
-        password,
         token,
       });
 
@@ -99,7 +100,6 @@ const ResetPasswordPage = () => {
           <Input
             id="reset-token"
             autoComplete="off"
-            required
             value={token}
             onChange={(event) => setToken(event.target.value)}
           />

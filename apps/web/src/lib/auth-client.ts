@@ -25,6 +25,16 @@ export interface SignInEmailInput {
   password: string;
 }
 
+export interface RequestPasswordResetInput {
+  email: string;
+  redirectTo?: string;
+}
+
+export interface ResetPasswordInput {
+  newPassword: string;
+  token: string;
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
@@ -66,3 +76,10 @@ export const signInEmail = async (input: SignInEmailInput): Promise<AuthMutation
 
 export const signOut = async (): Promise<AuthMutationResult> =>
   toAuthMutationResult(await authClient.signOut());
+
+export const requestPasswordReset = async (
+  input: RequestPasswordResetInput,
+): Promise<AuthMutationResult> => toAuthMutationResult(await authClient.requestPasswordReset(input));
+
+export const resetPassword = async (input: ResetPasswordInput): Promise<AuthMutationResult> =>
+  toAuthMutationResult(await authClient.resetPassword(input));

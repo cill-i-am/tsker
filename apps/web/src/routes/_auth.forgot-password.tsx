@@ -1,12 +1,14 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { AuthCard } from "@/components/auth/auth-card";
-import { postAuthRequest } from "@/components/auth/auth-request";
-import { type AuthStatusState, AuthStatus } from "@/components/auth/auth-status";
+import { AuthStatus } from "@/components/auth/auth-status";
+import type { AuthStatusState } from "@/components/auth/auth-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { requestPasswordReset } from "@/lib/auth-client";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("dev@localtest.me");
@@ -21,7 +23,7 @@ const ForgotPasswordPage = () => {
     try {
       const redirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
-      const result = await postAuthRequest("/api/auth/forget-password", {
+      const result = await requestPasswordReset({
         email,
         redirectTo,
       });

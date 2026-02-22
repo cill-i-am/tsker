@@ -29,7 +29,7 @@ const OrgIndexPage = () => {
               Back to onboarding
             </Button>
             <Button render={<Link to="/" />} variant="outline">
-              Back home
+              Back to app
             </Button>
           </div>
         </CardContent>

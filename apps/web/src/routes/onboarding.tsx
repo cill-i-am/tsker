@@ -1,8 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute, redirect, useLoaderData, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import {
+  Link,
+  createFileRoute,
+  redirect,
+  useLoaderData,
+  useNavigate,
+} from "@tanstack/react-router";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
-import { type AuthStatusState, AuthStatus } from "@/components/auth/auth-status";
+import { AuthStatus } from "@/components/auth/auth-status";
+import type { AuthStatusState } from "@/components/auth/auth-status";
 import {
   getPendingInvitations,
   resolveCreateOrganizationSlug,
@@ -192,7 +200,9 @@ const OnboardingPage = () => {
     ]);
 
     return {
-      activeOrganization: toOrganizationSummary(activeOrganizationResult.error ? null : activeOrganizationResult.data),
+      activeOrganization: toOrganizationSummary(
+        activeOrganizationResult.error ? null : activeOrganizationResult.data,
+      ),
       invitations: toInvitationList(invitationsResult.error ? [] : invitationsResult.data),
       organizations: toOrganizationList(organizationsResult.error ? [] : organizationsResult.data),
     };
@@ -262,7 +272,8 @@ const OnboardingPage = () => {
       });
     } catch (error) {
       setStatus({
-        description: error instanceof Error ? error.message : "Unexpected organization creation error.",
+        description:
+          error instanceof Error ? error.message : "Unexpected organization creation error.",
         title: "Unable to create organization",
         variant: "destructive",
       });
@@ -303,7 +314,8 @@ const OnboardingPage = () => {
       await navigateToOrganization(selectedOrganization.slug);
     } catch (error) {
       setStatus({
-        description: error instanceof Error ? error.message : "Unexpected organization switch error.",
+        description:
+          error instanceof Error ? error.message : "Unexpected organization switch error.",
         title: "Unable to set active organization",
         variant: "destructive",
       });
@@ -344,8 +356,9 @@ const OnboardingPage = () => {
       const targetSlug =
         refreshed.activeOrganization?.slug ||
         invitation.organizationSlug ||
-        refreshed.organizations.find((organization) => organization.name === invitation.organizationName)
-          ?.slug;
+        refreshed.organizations.find(
+          (organization) => organization.name === invitation.organizationName,
+        )?.slug;
 
       if (targetSlug) {
         await navigateToOrganization(targetSlug);
@@ -358,7 +371,8 @@ const OnboardingPage = () => {
       });
     } catch (error) {
       setStatus({
-        description: error instanceof Error ? error.message : "Unexpected invitation acceptance error.",
+        description:
+          error instanceof Error ? error.message : "Unexpected invitation acceptance error.",
         title: "Unable to accept invitation",
         variant: "destructive",
       });
@@ -406,7 +420,7 @@ const OnboardingPage = () => {
               Continue with active org
             </Button>
             <Button render={<Link to="/" />} variant="outline">
-              Back home
+              Back to app
             </Button>
           </div>
         </CardContent>
@@ -417,11 +431,16 @@ const OnboardingPage = () => {
           <CardHeader>
             <CardTitle>Organizations</CardTitle>
             <CardDescription>
-              {activeOrg ? `Current active organization: ${activeOrg.name}` : "No active organization selected yet."}
+              {activeOrg
+                ? `Current active organization: ${activeOrg.name}`
+                : "No active organization selected yet."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form className="space-y-4 rounded-lg border border-dashed border-border/70 p-4" onSubmit={handleCreateOrganization}>
+            <form
+              className="space-y-4 rounded-lg border border-dashed border-border/70 p-4"
+              onSubmit={handleCreateOrganization}
+            >
               <div className="space-y-2">
                 <Label htmlFor="organization-name">Organization name</Label>
                 <Input
@@ -443,7 +462,9 @@ const OnboardingPage = () => {
                   placeholder="acme"
                   value={slug}
                 />
-                <p className="text-xs text-muted-foreground">Lowercase letters, numbers, and dashes. Leave blank to derive from the name.</p>
+                <p className="text-xs text-muted-foreground">
+                  Lowercase letters, numbers, and dashes. Leave blank to derive from the name.
+                </p>
               </div>
 
               <Button className="w-full" disabled={createSubmitting || isLoading} type="submit">
@@ -451,7 +472,9 @@ const OnboardingPage = () => {
               </Button>
             </form>
 
-            {isLoading ? <p className="text-sm text-muted-foreground">Loading organizations...</p> : null}
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading organizations...</p>
+            ) : null}
 
             {!isLoading && organizations.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
@@ -500,7 +523,9 @@ const OnboardingPage = () => {
             <CardDescription>Accept invitations to join existing organizations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {isLoading ? <p className="text-sm text-muted-foreground">Loading invitations...</p> : null}
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading invitations...</p>
+            ) : null}
 
             {!isLoading && pendingInvitations.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
@@ -519,7 +544,9 @@ const OnboardingPage = () => {
                       key={invitation.id}
                     >
                       <div className="space-y-1">
-                        <p className="font-medium">{invitation.organizationName ?? "Organization invitation"}</p>
+                        <p className="font-medium">
+                          {invitation.organizationName ?? "Organization invitation"}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           Role: {invitation.role ?? "member"}
                           {invitation.email ? ` • ${invitation.email}` : ""}

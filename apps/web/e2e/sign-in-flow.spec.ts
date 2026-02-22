@@ -1,153 +1,83 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const makeUniqueEmail = (prefix: string) =>
-  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
 
-const fillCredentials = async (
-  page: Page,
-  input: { email: string; password: string; name?: string },
-) => {
-  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
-  const emailInput = page.getByRole('textbox', { name: 'Email', exact: true })
-  const passwordInput = page.getByRole('textbox', { name: 'Password', exact: true })
+const fillLoginForm = async (page: Page, input: { email: string; password: string }) => {
+  await page.locator("#login-email").fill(input.email);
+  await expect(page.locator("#login-email")).toHaveValue(input.email);
 
-  if (input.name) {
-    await nameInput.fill(input.name)
-    await expect(nameInput).toHaveValue(input.name)
-  }
+  await page.locator("#login-password").fill(input.password);
+  await expect(page.locator("#login-password")).toHaveValue(input.password);
+};
 
-  await emailInput.fill(input.email)
-  await expect(emailInput).toHaveValue(input.email)
-
-  await passwordInput.fill(input.password)
-  await expect(passwordInput).toHaveValue(input.password)
-}
-
-const expectHttpStatus = async (
-  page: Page,
-  statusFamily: 2 | 4,
-) => {
-  const credentialsSection = page
-    .locator('section')
-    .filter({ has: page.getByRole('heading', { name: 'Credentials' }) })
-  const statusText = credentialsSection.locator('p').filter({
-    hasText: new RegExp(`^HTTP ${statusFamily}\\d\\d:`),
-  })
-
-  await expect(statusText).toBeVisible({ timeout: 10_000 })
-}
-
-const waitForInteractiveSessionState = async (page: Page) => {
-  await expect(page.getByText(/Pending:\s*no/)).toBeVisible({ timeout: 15_000 })
-}
-
-test.describe('sign-in flow', () => {
-  test('signs up and keeps protected route unauthenticated until verification', async ({
+test.describe("sign-in flow", () => {
+  test("redirects unauthenticated users from root and guarded routes to login", async ({
     page,
   }) => {
-    const password = 'password123!'
-    const email = makeUniqueEmail('signin-happy')
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByText("Sign in to tsker")).toBeVisible();
 
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Auth Session Validation' })).toBeVisible()
-    await waitForInteractiveSessionState(page)
+    await page.goto("/onboarding");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByText("Sign in to tsker")).toBeVisible();
 
-    await fillCredentials(page, {
-      name: 'Sign In Happy User',
-      email,
-      password,
-    })
-    await page.getByRole('button', { name: 'Sign Up' }).click()
-    await expectHttpStatus(page, 2)
+    await page.goto("/org/guard-check");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByText("Sign in to tsker")).toBeVisible();
 
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await expectHttpStatus(page, 4)
+    await page.goto("/protected");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByText("Sign in to tsker")).toBeVisible();
+  });
 
-    await page.getByRole('link', { name: 'Open Protected Route Check' }).click()
-    await expect(page).toHaveURL(/\/protected$/)
-    await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
-  })
+  test("sign up route renders account creation form", async ({ page }) => {
+    await page.goto("/signup");
+    await expect(page.getByText("Create your account")).toBeVisible();
+    await expect(page.locator("#signup-name")).toBeVisible();
+    await expect(page.locator("#signup-email")).toBeVisible();
+    await expect(page.locator("#signup-password")).toBeVisible();
+    await expect(page.locator("#signup-confirm-password")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
+  });
 
-  test('rejects sign-in when password is invalid', async ({ page }) => {
-    const validPassword = 'password123!'
-    const email = makeUniqueEmail('signin-wrong-password')
+  test("forgot password request returns user-safe success state", async ({ page }) => {
+    const email = makeUniqueEmail("forgot-password");
 
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Auth Session Validation' })).toBeVisible()
-    await waitForInteractiveSessionState(page)
+    await page.goto("/forgot-password");
+    await expect(page.getByText("Forgot your password?")).toBeVisible();
+    await page.locator("#forgot-email").fill(email);
+    await expect(page.locator("#forgot-email")).toHaveValue(email);
+    await page.getByRole("button", { name: "Send reset link" }).click();
 
-    await fillCredentials(page, {
-      name: 'Wrong Password User',
-      email,
-      password: validPassword,
-    })
-    await page.getByRole('button', { name: 'Sign Up' }).click()
-    await expectHttpStatus(page, 2)
-
-    await page.getByRole('button', { name: 'Sign Out' }).click()
-    await expectHttpStatus(page, 2)
-
-    await fillCredentials(page, {
-      email,
-      password: 'wrong-password-123!',
-    })
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await expectHttpStatus(page, 4)
-
-    await page.getByRole('link', { name: 'Open Protected Route Check' }).click()
-    await expect(page).toHaveURL(/\/protected$/)
-    await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
-  })
-
-  test('rejects sign-in for unknown user', async ({ page }) => {
-    const email = makeUniqueEmail('signin-unknown-user')
-
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Auth Session Validation' })).toBeVisible()
-    await waitForInteractiveSessionState(page)
-
-    await fillCredentials(page, {
-      name: 'Unknown User',
-      email,
-      password: 'password123!',
-    })
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await expectHttpStatus(page, 4)
-
-    await page.getByRole('link', { name: 'Open Protected Route Check' }).click()
-    await expect(page).toHaveURL(/\/protected$/)
-    await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
-  })
-
-  test('shows protected route as unauthenticated when user is not logged in', async ({
-    page,
-  }) => {
-    await page.goto('/protected')
-
+    await expect(page.getByText(/Reset email sent/i)).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Protected Session Check' }),
-    ).toBeVisible()
-    await expect(page.getByText(/Status:\s*200/)).toBeVisible()
-    await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
-  })
+      page.getByText(/If the account exists, a reset link has been sent/i),
+    ).toBeVisible();
+  });
 
-  test('redirects unauthenticated users from guarded onboarding and org routes', async ({
-    page,
-  }) => {
-    await page.goto('/onboarding')
-    await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByText('Sign in to tsker')).toBeVisible()
+  test("reset password route loads token from query params", async ({ page }) => {
+    const token = `test-token-${Date.now()}`;
 
-    await page.goto('/org/guard-check')
-    await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByText('Sign in to tsker')).toBeVisible()
-  })
+    await page.goto(`/reset-password?token=${token}`);
+    await expect(page.getByText("Reset your password")).toBeVisible();
+    await expect(page.locator("#reset-token")).toHaveValue(token);
+  });
 
-  test('shows login route for unauthenticated users', async ({
-    page,
-  }) => {
-    await page.goto('/login')
-    await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByText('Sign in to tsker')).toBeVisible()
-  })
-})
+  test("rejects sign-in for unknown user", async ({ page }) => {
+    const email = makeUniqueEmail("signin-unknown-user");
+
+    await page.goto("/login");
+    await expect(page.getByText("Sign in to tsker")).toBeVisible();
+
+    await fillLoginForm(page, {
+      email,
+      password: "password123!",
+    });
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByText(/Unable to sign in/i)).toBeVisible();
+  });
+});

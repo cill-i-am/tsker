@@ -82,6 +82,7 @@
 - [x] Wave A verification
 - [x] Wave B verification
 - [x] Final integration verification
+- [x] Post-integration hardening verification (auth-first root routing + e2e stabilization)
 
 ### Lane Execution Log
 - [x] lane-auth-server-hardening merged via `843939e`
@@ -111,6 +112,11 @@
 - [x] `pnpm --filter web test && pnpm --filter web type-check` (pass)
 - [x] `pnpm --filter web test:e2e` (pass after aligning auth verification expectations in e2e assertions)
 - [x] `pnpm --filter @repo/db build && pnpm --filter @repo/db type-check` (pass)
+
+### Post-Integration Hardening Run
+- [x] `pnpm --filter web test` (pass)
+- [x] `pnpm --filter web type-check` (pass)
+- [x] `pnpm --filter web test:e2e` (pass)
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening

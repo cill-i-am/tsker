@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Lock, Menu, X } from "lucide-react";
+import { Home, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 const Header = () => {
@@ -50,19 +50,6 @@ const Header = () => {
           >
             <Home size={20} />
             <span className="font-medium">Home</span>
-          </Link>
-
-          <Link
-            to="/protected"
-            onClick={() => setIsOpen(false)}
-            className="mb-2 flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-800"
-            activeProps={{
-              className:
-                "flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2",
-            }}
-          >
-            <Lock size={20} />
-            <span className="font-medium">Protected</span>
           </Link>
 
           {/* Demo Links Start */}
