@@ -1,24 +1,24 @@
-import { createAuthPool } from "@repo/db";
+import { createAuthPool } from "@repo/db/auth-client";
 import { Effect } from "effect";
 
-import { AppConfigService } from "../config/AppConfigService.js";
-import { AuthIntegrationError } from "../errors.js";
-import { makeAuth, makeAuthDatabase } from "./auth.js";
+import { makeAuth, makeAuthDatabase } from "@/auth/auth.js";
+import { AppConfigService } from "@/config/app-config-service.js";
+import { AuthIntegrationError } from "@/errors/auth-integration-error.js";
 
 const toAuthError = (cause: unknown, action: string) =>
   new AuthIntegrationError({
-    message: `${action} failed: ${String(cause)}`
+    message: `${action} failed: ${String(cause)}`,
   });
 
 export class AuthService extends Effect.Service<AuthService>()("AuthService", {
   accessors: true,
   dependencies: [AppConfigService.Default],
-  scoped: Effect.gen(function* () {
+  scoped: Effect.gen(function* scoped() {
     const config = yield* AppConfigService.get();
 
     const pool = yield* Effect.acquireRelease(
       Effect.sync(() => createAuthPool(config.DATABASE_URL)),
-      (pool) => Effect.promise(() => pool.end()).pipe(Effect.orDie)
+      (connectionPool) => Effect.promise(() => connectionPool.end()).pipe(Effect.orDie),
     );
 
     const database = makeAuthDatabase(config.DATABASE_URL, pool);
@@ -27,17 +27,17 @@ export class AuthService extends Effect.Service<AuthService>()("AuthService", {
     const webHandler = auth.handler;
 
     const getSessionFromHeaders = Effect.fn("AuthService.getSessionFromHeaders")(
-      function* (headers: Headers) {
+      function* getSessionFromHeaders(headers: Headers) {
         return yield* Effect.tryPromise({
+          catch: (cause) => toAuthError(cause, "get session"),
           try: () => auth.api.getSession({ headers }),
-          catch: (cause) => toAuthError(cause, "get session")
         });
-      }
+      },
     );
 
     return {
+      getSessionFromHeaders,
       webHandler,
-      getSessionFromHeaders
     };
-  })
+  }),
 }) {}

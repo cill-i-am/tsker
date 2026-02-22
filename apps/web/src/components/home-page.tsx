@@ -1,45 +1,42 @@
-import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
-import { signInEmail, signOut, signUpEmail } from '../lib/auth-api'
-import { authClient } from '../lib/auth-client'
+import { signInEmail, signOut, signUpEmail } from "@/lib/auth-api";
+import { authClient } from "@/lib/auth-client";
 
-export function HomePage() {
-  const session = authClient.useSession()
-  const [email, setEmail] = useState('dev@localtest.me')
-  const [password, setPassword] = useState('password123!')
-  const [name, setName] = useState('Local User')
-  const [status, setStatus] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+export const HomePage = () => {
+  const session = authClient.useSession();
+  const [email, setEmail] = useState("dev@localtest.me");
+  const [password, setPassword] = useState("password123!");
+  const [name, setName] = useState("Local User");
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const runAction = async (fn: () => Promise<{ status: number; body: unknown }>) => {
-    setBusy(true)
-    setStatus(null)
+    setBusy(true);
+    setStatus(null);
     try {
-      const result = await fn()
-      await session.refetch()
-      setStatus(`HTTP ${result.status}: ${JSON.stringify(result.body)}`)
+      const result = await fn();
+      await session.refetch();
+      setStatus(`HTTP ${result.status}: ${JSON.stringify(result.body)}`);
     } catch (error) {
-      setStatus(`Request failed: ${String(error)}`)
+      setStatus(`Request failed: ${String(error)}`);
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
   return (
     <main className="mx-auto max-w-4xl p-6 text-white">
       <h2 className="text-3xl font-semibold">Auth Session Validation</h2>
       <p className="mt-2 text-slate-300">
-        This TanStack Start app uses cookie-based Better Auth sessions against a
-        sibling API origin.
+        This TanStack Start app uses cookie-based Better Auth sessions against a sibling API origin.
       </p>
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         <section className="rounded border border-slate-700 bg-slate-900 p-4">
           <h3 className="text-lg font-semibold">Current Session</h3>
-          <p className="mt-2 text-sm text-slate-300">
-            Pending: {session.isPending ? 'yes' : 'no'}
-          </p>
+          <p className="mt-2 text-sm text-slate-300">Pending: {session.isPending ? "yes" : "no"}</p>
           <pre className="mt-3 overflow-auto rounded bg-slate-950 p-3 text-xs text-slate-200">
             {JSON.stringify(session.data, null, 2)}
           </pre>
@@ -86,7 +83,7 @@ export function HomePage() {
             <button
               type="button"
               disabled={busy}
-              onClick={() => runAction(() => signUpEmail({ email, password, name }))}
+              onClick={() => runAction(() => signUpEmail({ email, name, password }))}
               className="rounded bg-cyan-600 px-3 py-2 text-sm font-medium hover:bg-cyan-500 disabled:opacity-50"
             >
               Sign Up
@@ -124,5 +121,5 @@ export function HomePage() {
         Open Protected Route Check
       </Link>
     </main>
-  )
-}
+  );
+};

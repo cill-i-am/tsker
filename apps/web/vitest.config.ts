@@ -8,6 +8,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   test: {
+    globals: true,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: ['e2e/**'],
   },

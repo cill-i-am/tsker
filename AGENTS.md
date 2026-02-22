@@ -14,7 +14,7 @@ This file is intentionally specific to the current codebase and should be treate
 
 - Monorepo: Turborepo + pnpm workspaces.
 - Root apps: `apps/api`, `apps/web`.
-- Shared packages: `packages/db`, `packages/eslint-config`, `packages/typescript-config`.
+- Shared packages: `packages/db`, `packages/typescript-config`.
 
 ## 3. Instruction Hierarchy
 
@@ -31,6 +31,8 @@ Run from repo root unless noted.
 ```bash
 pnpm dev
 pnpm dev:apps
+pnpm lint
+pnpm fix
 pnpm test
 pnpm check-types
 pnpm build
@@ -87,3 +89,26 @@ When you learn a stable, non-trivial repo fact during task execution, update thi
 - Add verified commands only.
 - Remove outdated instructions immediately.
 - Prefer concrete file paths and examples over generic advice.
+
+## 8. Ultracite Standards
+
+This repository uses **Ultracite** with the **Oxlint + Oxfmt** provider.
+
+### Quick reference
+
+```bash
+pnpm exec ultracite check
+pnpm exec ultracite fix
+pnpm exec ultracite doctor
+```
+
+### Coding expectations
+
+- Favor explicit and type-safe TypeScript.
+- Keep functions focused and readable; avoid unnecessary abstractions.
+- Prefer modern JavaScript patterns (`const`, `for...of`, optional chaining, template literals).
+- Handle async flows with `async/await` and explicit error handling.
+- Keep React markup semantic and accessible.
+- Remove debug artifacts (`console.log`, `debugger`) from production paths.
+- Trust formatter-driven ordering for imports and Tailwind classes.
+- Buildable workspace packages under `packages/*` should use `tsdown` for bundling.

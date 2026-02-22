@@ -1,18 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { createAuthPool } from "@repo/db/auth-client";
 import { Schema } from "effect";
-import { createAuthPool } from "@repo/db";
 
-import { UpResponseSchema } from "./features/health/HealthApi.js";
-import { createTestServer } from "./server.js";
+import { UpResponseSchema } from "@/features/health/health-api.js";
+import { createTestServer } from "@/server.js";
 
 const decodeUpResponse = Schema.decodeUnknownSync(UpResponseSchema);
 const baseEnv = {
   APP_ENV: "local",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/tsker_test",
+  AUTH_COOKIE_DOMAIN: ".localtest.me",
+  AUTH_TRUSTED_ORIGINS: "http://app.localtest.me:3000",
   BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret!",
   BETTER_AUTH_URL: "http://api.localtest.me:3002",
-  AUTH_TRUSTED_ORIGINS: "http://app.localtest.me:3000",
-  AUTH_COOKIE_DOMAIN: ".localtest.me"
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/tsker_test",
 } as const;
 const runDbTests = process.env.RUN_DB_TESTS === "true";
 const trustedOrigin = "http://app.localtest.me:3000";
@@ -65,7 +64,7 @@ const dbSchemaStatements = [
     "created_at" timestamptz not null default now(),
     "updated_at" timestamptz not null default now()
   )`,
-  `create index if not exists "verification_identifier_idx" on "verification" ("identifier")`
+  `create index if not exists "verification_identifier_idx" on "verification" ("identifier")`,
 ];
 
 const setupAuthTables = async () => {
@@ -88,9 +87,9 @@ const clearAuthTables = async () => {
   }
 };
 
-const readSetCookieHeaders = (response: Response): Array<string> => {
+const readSetCookieHeaders = (response: Response): string[] => {
   const headersWithSetCookie = response.headers as Headers & {
-    getSetCookie?: () => Array<string>;
+    getSetCookie?: () => string[];
   };
 
   if (typeof headersWithSetCookie.getSetCookie === "function") {
@@ -99,6 +98,120 @@ const readSetCookieHeaders = (response: Response): Array<string> => {
 
   const value = response.headers.get("set-cookie");
   return value ? [value] : [];
+};
+
+const getSessionValue = (body: { session?: unknown | null } | null) => body?.session ?? null;
+
+const signUpEmail = (
+  handler: (request: Request) => Promise<Response>,
+  {
+    email,
+    name,
+    origin,
+    password,
+  }: {
+    email: string;
+    name: string;
+    origin: string;
+    password: string;
+  },
+) =>
+  handler(
+    new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
+      body: JSON.stringify({
+        email,
+        name,
+        password,
+      }),
+      headers: {
+        "content-type": "application/json",
+        origin,
+      },
+      method: "POST",
+    }),
+  );
+
+const signInEmail = (
+  handler: (request: Request) => Promise<Response>,
+  {
+    email,
+    origin,
+    password,
+  }: {
+    email: string;
+    origin: string;
+    password: string;
+  },
+) =>
+  handler(
+    new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+      headers: {
+        "content-type": "application/json",
+        origin,
+      },
+      method: "POST",
+    }),
+  );
+
+const getSession = (handler: (request: Request) => Promise<Response>, cookieHeader?: string) =>
+  handler(
+    new Request(`${authBaseUrl}/api/auth/get-session`, {
+      headers: cookieHeader
+        ? {
+            cookie: cookieHeader,
+            origin: trustedOrigin,
+          }
+        : {
+            origin: trustedOrigin,
+          },
+    }),
+  );
+
+const runAuthenticatedSessionFlow = async (
+  handler: (request: Request) => Promise<Response>,
+  email: string,
+  password: string,
+) => {
+  const signUpResponse = await signUpEmail(handler, {
+    email,
+    name: "Session Flow User",
+    origin: trustedOrigin,
+    password,
+  });
+  const setCookieHeaders = readSetCookieHeaders(signUpResponse);
+  const cookieHeader = setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; ");
+  const authenticatedSessionResponse = await getSession(handler, cookieHeader);
+  const authenticatedSessionBody = (await authenticatedSessionResponse.json()) as {
+    session: unknown;
+    user?: {
+      email?: string;
+    } | null;
+  };
+
+  return {
+    authenticatedSessionBody,
+    authenticatedSessionResponse,
+    setCookieHeaders,
+    signUpResponse,
+  };
+};
+
+const withDbServer = async (
+  run: (handler: (request: Request) => Promise<Response>) => Promise<void>,
+) => {
+  await setupAuthTables();
+  await clearAuthTables();
+  const { handler, dispose } = await createTestServer(baseEnv);
+
+  try {
+    await run(handler);
+  } finally {
+    await dispose();
+  }
 };
 
 describe("up endpoint", () => {
@@ -112,8 +225,8 @@ describe("up endpoint", () => {
       expect(response.status).toBe(200);
       expect(body.status).toBe("ok");
       expect(body.service).toBe("api");
-      expect(typeof body.uptimeSeconds).toBe("number");
-      expect(typeof body.timestamp).toBe("string");
+      expectTypeOf(body.uptimeSeconds).toBeNumber();
+      expectTypeOf(body.timestamp).toBeString();
     } finally {
       await dispose();
     }
@@ -135,7 +248,7 @@ describe("swagger exposure", () => {
   it("hides docs in production", async () => {
     const { handler, dispose } = await createTestServer({
       ...baseEnv,
-      APP_ENV: "production"
+      APP_ENV: "production",
     });
 
     try {
@@ -155,9 +268,9 @@ describe("auth routes", () => {
       const response = await handler(
         new Request(`${authBaseUrl}/api/auth/get-session`, {
           headers: {
-            origin: trustedOrigin
-          }
-        })
+            origin: trustedOrigin,
+          },
+        }),
       );
 
       expect(response.status).not.toBe(404);
@@ -172,13 +285,13 @@ describe("auth routes", () => {
     try {
       const response = await handler(
         new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          method: "OPTIONS",
           headers: {
-            origin: trustedOrigin,
+            "access-control-request-headers": "content-type",
             "access-control-request-method": "POST",
-            "access-control-request-headers": "content-type"
-          }
-        })
+            origin: trustedOrigin,
+          },
+          method: "OPTIONS",
+        }),
       );
 
       expect(response.status).toBe(204);
@@ -195,13 +308,13 @@ describe("auth routes", () => {
     try {
       const response = await handler(
         new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          method: "OPTIONS",
           headers: {
-            origin: "http://evil.localtest.me:3000",
+            "access-control-request-headers": "content-type",
             "access-control-request-method": "POST",
-            "access-control-request-headers": "content-type"
-          }
-        })
+            origin: "http://evil.localtest.me:3000",
+          },
+          method: "OPTIONS",
+        }),
       );
       const body = (await response.json()) as {
         error?: string;
@@ -213,254 +326,121 @@ describe("auth routes", () => {
       await dispose();
     }
   });
+});
 
-  it.skipIf(!runDbTests)("rejects untrusted origins for auth mutations", async () => {
-    await setupAuthTables();
-    await clearAuthTables();
+describe.skipIf(!runDbTests)("auth db routes", () => {
+  it("rejects untrusted origins for auth mutations", async () => {
+    await withDbServer(async (handler) => {
+      const response = await signUpEmail(handler, {
+        email: "test@example.com",
+        name: "Test User",
+        origin: "http://evil.localtest.me:3000",
+        password: "password123!",
+      });
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(response.status).not.toBe(404);
+    });
+  });
 
-    const { handler, dispose } = await createTestServer(baseEnv);
+  it("rejects untrusted origins for sign-in mutations with forbidden_origin", async () => {
+    await withDbServer(async (handler) => {
+      const response = await signInEmail(handler, {
+        email: "test@example.com",
+        origin: "http://evil.localtest.me:3000",
+        password: "password123!",
+      });
 
-    try {
-      const response = await handler(
-        new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            origin: "http://evil.localtest.me:3000"
-          },
-          body: JSON.stringify({
-            email: "test@example.com",
-            password: "password123!",
-            name: "Test User"
-          })
-        })
-      );
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      expect(response.status).toBe(403);
+      expect(body?.error).toBe("forbidden_origin");
+    });
+  });
+
+  it("rejects sign-in for unknown users", async () => {
+    await withDbServer(async (handler) => {
+      const response = await signInEmail(handler, {
+        email: `unknown-${Date.now()}@example.com`,
+        origin: trustedOrigin,
+        password: "password123!",
+      });
 
       expect(response.status).toBeGreaterThanOrEqual(400);
       expect(response.status).toBeLessThan(500);
       expect(response.status).not.toBe(404);
-    } finally {
-      await dispose();
-    }
+    });
   });
 
-  it.skipIf(!runDbTests)(
-    "rejects untrusted origins for sign-in mutations with forbidden_origin",
-    async () => {
-      await setupAuthTables();
-      await clearAuthTables();
-
-      const { handler, dispose } = await createTestServer(baseEnv);
-
-      try {
-        const response = await handler(
-          new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              origin: "http://evil.localtest.me:3000"
-            },
-            body: JSON.stringify({
-              email: "test@example.com",
-              password: "password123!"
-            })
-          })
-        );
-
-        const body = (await response.json().catch(() => null)) as
-          | {
-              error?: string;
-            }
-          | null;
-
-        expect(response.status).toBe(403);
-        expect(body?.error).toBe("forbidden_origin");
-      } finally {
-        await dispose();
-      }
-    }
-  );
-
-  it.skipIf(!runDbTests)("rejects sign-in for unknown users", async () => {
-    await setupAuthTables();
-    await clearAuthTables();
-
-    const { handler, dispose } = await createTestServer(baseEnv);
-
-    try {
+  it("rejects malformed sign-in payloads", async () => {
+    await withDbServer(async (handler) => {
       const response = await handler(
         new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          method: "POST",
+          body: JSON.stringify({
+            email: "invalid-payload@example.com",
+          }),
           headers: {
             "content-type": "application/json",
-            origin: trustedOrigin
+            origin: trustedOrigin,
           },
-          body: JSON.stringify({
-            email: `unknown-${Date.now()}@example.com`,
-            password: "password123!"
-          })
-        })
+          method: "POST",
+        }),
       );
 
       expect(response.status).toBeGreaterThanOrEqual(400);
       expect(response.status).toBeLessThan(500);
       expect(response.status).not.toBe(404);
-    } finally {
-      await dispose();
-    }
+    });
   });
 
-  it.skipIf(!runDbTests)("rejects malformed sign-in payloads", async () => {
-    await setupAuthTables();
-    await clearAuthTables();
-
-    const { handler, dispose } = await createTestServer(baseEnv);
-
-    try {
-      const response = await handler(
-        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            origin: trustedOrigin
-          },
-          body: JSON.stringify({
-            email: "invalid-payload@example.com"
-          })
-        })
-      );
-
-      expect(response.status).toBeGreaterThanOrEqual(400);
-      expect(response.status).toBeLessThan(500);
-      expect(response.status).not.toBe(404);
-    } finally {
-      await dispose();
-    }
-  });
-
-  it.skipIf(!runDbTests)("rejects sign-in with wrong password", async () => {
-    await setupAuthTables();
-    await clearAuthTables();
-
-    const { handler, dispose } = await createTestServer(baseEnv);
-
-    try {
+  it("rejects sign-in with wrong password", async () => {
+    await withDbServer(async (handler) => {
       const email = `wrong-password-${Date.now()}@example.com`;
 
-      const signUpResponse = await handler(
-        new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            origin: trustedOrigin
-          },
-          body: JSON.stringify({
-            email,
-            password: "password123!",
-            name: "Wrong Password User"
-          })
-        })
-      );
+      const signUpResponse = await signUpEmail(handler, {
+        email,
+        name: "Wrong Password User",
+        origin: trustedOrigin,
+        password: "password123!",
+      });
       expect(signUpResponse.status).toBeLessThan(400);
 
-      const signInResponse = await handler(
-        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            origin: trustedOrigin
-          },
-          body: JSON.stringify({
-            email,
-            password: "incorrect-password!"
-          })
-        })
-      );
+      const signInResponse = await signInEmail(handler, {
+        email,
+        origin: trustedOrigin,
+        password: "incorrect-password!",
+      });
 
       expect(signInResponse.status).toBeGreaterThanOrEqual(400);
       expect(signInResponse.status).toBeLessThan(500);
       expect(signInResponse.status).not.toBe(404);
-    } finally {
-      await dispose();
-    }
+    });
   });
 
-  it.skipIf(!runDbTests)(
-    "supports TanStack-style cookie session flow across sibling subdomains",
-    async () => {
-      await setupAuthTables();
-      await clearAuthTables();
+  it("creates cookie sessions across sibling subdomains", async () => {
+    await withDbServer(async (handler) => {
+      const email = `flow-${Date.now()}@example.com`;
+      const flow = await runAuthenticatedSessionFlow(handler, email, "password123!");
+      expect(flow.signUpResponse.status).toBeLessThan(400);
+      expect(flow.setCookieHeaders.length).toBeGreaterThan(0);
+      expect(
+        flow.setCookieHeaders.some((cookie) => /domain=\.?localtest\.me/i.test(cookie)),
+      ).toBeTruthy();
+      expect(flow.authenticatedSessionResponse.status).toBe(200);
+      expect(flow.authenticatedSessionBody.user?.email).toBe(email);
+    });
+  });
 
-      const { handler, dispose } = await createTestServer(baseEnv);
-
-      try {
-        const email = `flow-${Date.now()}@example.com`;
-        const password = "password123!";
-
-        const signUpResponse = await handler(
-          new Request(`${authBaseUrl}/api/auth/sign-up/email`, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              origin: trustedOrigin
-            },
-            body: JSON.stringify({
-              email,
-              password,
-              name: "Session Flow User"
-            })
-          })
-        );
-
-        expect(signUpResponse.status).toBeLessThan(400);
-
-        const setCookieHeaders = readSetCookieHeaders(signUpResponse);
-        expect(setCookieHeaders.length).toBeGreaterThan(0);
-        expect(
-          setCookieHeaders.some((cookie) => /domain=\.?localtest\.me/i.test(cookie))
-        ).toBe(true);
-
-        const cookieHeader = setCookieHeaders
-          .map((cookie) => cookie.split(";")[0])
-          .join("; ");
-
-        const authenticatedSessionResponse = await handler(
-          new Request(`${authBaseUrl}/api/auth/get-session`, {
-            headers: {
-              origin: trustedOrigin,
-              cookie: cookieHeader
-            }
-          })
-        );
-
-        const authenticatedSessionBody = (await authenticatedSessionResponse.json()) as {
-          session: unknown;
-          user?: {
-            email?: string;
-          } | null;
-        };
-        expect(authenticatedSessionResponse.status).toBe(200);
-        expect(authenticatedSessionBody.session).toBeTruthy();
-        expect(authenticatedSessionBody.user?.email).toBe(email);
-
-        const unauthenticatedSessionResponse = await handler(
-          new Request(`${authBaseUrl}/api/auth/get-session`, {
-            headers: {
-              origin: trustedOrigin
-            }
-          })
-        );
-        const unauthenticatedSessionBody = (await unauthenticatedSessionResponse.json()) as
-          | {
-              session?: unknown | null;
-            }
-          | null;
-
-        expect(unauthenticatedSessionResponse.status).toBe(200);
-        expect(unauthenticatedSessionBody?.session ?? null).toBeNull();
-      } finally {
-        await dispose();
-      }
-    }
-  );
+  it("returns an unauthenticated session when no cookie is present", async () => {
+    await withDbServer(async (handler) => {
+      const unauthenticatedSessionResponse = await getSession(handler);
+      const unauthenticatedSessionBody = (await unauthenticatedSessionResponse.json()) as {
+        session?: unknown | null;
+      } | null;
+      expect(unauthenticatedSessionResponse.status).toBe(200);
+      expect(getSessionValue(unauthenticatedSessionBody)).toBeNull();
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { ConfigProvider, Effect } from "effect";
 
-import { ConfigLoadError } from "../errors.js";
-import { AppConfigFromEnv } from "./AppConfig.js";
+import { AppConfigFromEnv } from "@/config/app-config.js";
+import { ConfigLoadError } from "@/errors/config-load-error.js";
 
 export const makeConfigProvider = (env: Partial<Record<string, string | undefined>>) => {
   const map = new Map<string, string>();
@@ -15,26 +15,26 @@ export const makeConfigProvider = (env: Partial<Record<string, string | undefine
 
 export class AppConfigService extends Effect.Service<AppConfigService>()("AppConfigService", {
   accessors: true,
-  effect: Effect.gen(function* () {
+  effect: Effect.gen(function* effect() {
     const config = yield* AppConfigFromEnv.pipe(
       Effect.mapError(
         (error) =>
           new ConfigLoadError({
-            message: `Config provider decode failed: ${error.message}`
-          })
-      )
+            message: `Config provider decode failed: ${error.message}`,
+          }),
+      ),
     );
 
     yield* Effect.log("Config loaded", {
-      port: config.PORT,
       appEnv: config.APP_ENV,
-      logLevel: config.LOG_LEVEL,
+      authCookieDomain: config.AUTH_COOKIE_DOMAIN,
       authUrl: config.BETTER_AUTH_URL,
-      authCookieDomain: config.AUTH_COOKIE_DOMAIN
+      logLevel: config.LOG_LEVEL,
+      port: config.PORT,
     });
 
     const get = Effect.fn("AppConfigService.get")(() => Effect.succeed(config));
 
     return { get };
-  })
+  }),
 }) {}

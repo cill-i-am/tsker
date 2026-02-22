@@ -2,11 +2,16 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "lib": ["ES2022"],
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "strict": true,
     "exactOptionalPropertyTypes": true,
+    "types": ["node", "vitest/globals"],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

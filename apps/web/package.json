@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "lint": "eslint .",
+    "lint": "ultracite check src/components src/lib src/routes src/router.tsx src/styles.css",
     "type-check": "tsc --noEmit",
     "check-types": "pnpm run type-check"
   },
@@ -38,7 +38,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.51.1",
-    "@repo/eslint-config": "workspace:^",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
@@ -46,7 +45,6 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "eslint": "^9.39.1",
     "jsdom": "^27.0.0",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",
