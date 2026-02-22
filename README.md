@@ -49,13 +49,14 @@ pnpm --filter web dev
 
 - Web: `http://app.localhost:1355`
 - API: `http://api.localhost:1355`
+- Auth: `http://auth.localhost:1355`
 
 Set `PORTLESS=0` to bypass `portless` and run direct dev commands.
 
 For Playwright e2e, URL targets are controlled separately via `E2E_WEB_URL` and
 `E2E_API_URL` (CI defaults use `*.localtest.me`).
-If auth is split into a separate service, set `E2E_AUTH_URL` and `VITE_AUTH_URL`
-to route web auth requests independently from core API requests.
+Auth runs as a dedicated service; set `E2E_AUTH_URL` and `VITE_AUTH_URL` to the
+auth service origin for e2e and web runtime.
 
 ## Database environments
 

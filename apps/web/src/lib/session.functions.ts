@@ -4,11 +4,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { getForwardedOrigin } from "@/lib/request-origin";
 
 const getAuthBaseUrl = () =>
-  process.env.VITE_AUTH_URL ||
-  process.env.VITE_API_URL ||
-  import.meta.env.VITE_AUTH_URL ||
-  import.meta.env.VITE_API_URL ||
-  "http://api.localhost:1355";
+  process.env.VITE_AUTH_URL || import.meta.env.VITE_AUTH_URL || "http://auth.localhost:1355";
 
 export interface ProtectedSessionResponse {
   authenticated: boolean;
