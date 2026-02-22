@@ -131,6 +131,32 @@ const signUpEmail = (
     }),
   );
 
+const signInEmail = (
+  handler: (request: Request) => Promise<Response>,
+  {
+    email,
+    origin,
+    password,
+  }: {
+    email: string;
+    origin: string;
+    password: string;
+  },
+) =>
+  handler(
+    new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+      headers: {
+        "content-type": "application/json",
+        origin,
+      },
+      method: "POST",
+    }),
+  );
+
 const getSession = (handler: (request: Request) => Promise<Response>, cookieHeader?: string) =>
   handler(
     new Request(`${authBaseUrl}/api/auth/get-session`, {
@@ -252,6 +278,54 @@ describe("auth routes", () => {
       await dispose();
     }
   });
+
+  it("allows CORS preflight for trusted auth origins", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          headers: {
+            "access-control-request-headers": "content-type",
+            "access-control-request-method": "POST",
+            origin: trustedOrigin,
+          },
+          method: "OPTIONS",
+        }),
+      );
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(trustedOrigin);
+      expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("rejects CORS preflight for untrusted auth origins", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          headers: {
+            "access-control-request-headers": "content-type",
+            "access-control-request-method": "POST",
+            origin: "http://evil.localtest.me:3000",
+          },
+          method: "OPTIONS",
+        }),
+      );
+      const body = (await response.json()) as {
+        error?: string;
+      };
+
+      expect(response.status).toBe(403);
+      expect(body.error).toBe("forbidden_origin");
+    } finally {
+      await dispose();
+    }
+  });
 });
 
 describe.skipIf(!runDbTests)("auth db routes", () => {
@@ -266,6 +340,82 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
       expect(response.status).toBeGreaterThanOrEqual(400);
       expect(response.status).toBeLessThan(500);
       expect(response.status).not.toBe(404);
+    });
+  });
+
+  it("rejects untrusted origins for sign-in mutations with forbidden_origin", async () => {
+    await withDbServer(async (handler) => {
+      const response = await signInEmail(handler, {
+        email: "test@example.com",
+        origin: "http://evil.localtest.me:3000",
+        password: "password123!",
+      });
+
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      expect(response.status).toBe(403);
+      expect(body?.error).toBe("forbidden_origin");
+    });
+  });
+
+  it("rejects sign-in for unknown users", async () => {
+    await withDbServer(async (handler) => {
+      const response = await signInEmail(handler, {
+        email: `unknown-${Date.now()}@example.com`,
+        origin: trustedOrigin,
+        password: "password123!",
+      });
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(response.status).not.toBe(404);
+    });
+  });
+
+  it("rejects malformed sign-in payloads", async () => {
+    await withDbServer(async (handler) => {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
+          body: JSON.stringify({
+            email: "invalid-payload@example.com",
+          }),
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin,
+          },
+          method: "POST",
+        }),
+      );
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(response.status).not.toBe(404);
+    });
+  });
+
+  it("rejects sign-in with wrong password", async () => {
+    await withDbServer(async (handler) => {
+      const email = `wrong-password-${Date.now()}@example.com`;
+
+      const signUpResponse = await signUpEmail(handler, {
+        email,
+        name: "Wrong Password User",
+        origin: trustedOrigin,
+        password: "password123!",
+      });
+      expect(signUpResponse.status).toBeLessThan(400);
+
+      const signInResponse = await signInEmail(handler, {
+        email,
+        origin: trustedOrigin,
+        password: "incorrect-password!",
+      });
+
+      expect(signInResponse.status).toBeGreaterThanOrEqual(400);
+      expect(signInResponse.status).toBeLessThan(500);
+      expect(signInResponse.status).not.toBe(404);
     });
   });
 

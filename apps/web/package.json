@@ -7,9 +7,16 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
+    "dev:e2e": "vite dev --host 0.0.0.0 --port 3000",
+    "e2e:db:migrate": "pnpm --filter @repo/db drizzle:migrate",
+    "e2e:start:api": "pnpm run e2e:db:migrate && pnpm --filter api dev:e2e",
+    "e2e:start:web": "pnpm run dev:e2e",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests src",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "lint": "ultracite check src/components src/lib src/routes src/router.tsx src/styles.css",
     "type-check": "tsc --noEmit",
     "check-types": "pnpm run type-check"
@@ -30,6 +37,7 @@
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",

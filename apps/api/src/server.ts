@@ -34,18 +34,20 @@ const toAuthError = (cause: unknown) =>
     message: `Auth proxy failed: ${String(cause)}`,
   });
 
+const normalizeOrigin = (origin: string): string => {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return origin;
+  }
+};
+
 const parseTrustedOrigins = (value: string): ReadonlySet<string> => {
   const origins = value
     .split(",")
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0)
-    .map((origin) => {
-      try {
-        return new URL(origin).origin;
-      } catch {
-        return origin;
-      }
-    });
+    .map(normalizeOrigin);
 
   return new Set(origins);
 };
@@ -60,51 +62,131 @@ const isMutationMethod = (method: string) => {
   );
 };
 
+const makeCorsHeaders = (
+  origin: string,
+  requestedHeaders: string | null,
+): Record<string, string> => ({
+  "access-control-allow-credentials": "true",
+  "access-control-allow-headers": requestedHeaders ?? "content-type, authorization",
+  "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+  "access-control-allow-origin": origin,
+});
+
+const forbiddenOriginResponse = () =>
+  HttpServerResponse.unsafeJson(
+    {
+      error: "forbidden_origin",
+      message: "Origin is not trusted",
+    },
+    {
+      status: 403,
+    },
+  );
+
+const authProxyFailedResponse = (error: unknown) =>
+  HttpServerResponse.unsafeJson(
+    {
+      error: "auth_proxy_failed",
+      message: String(error),
+    },
+    {
+      status: 500,
+    },
+  );
+
+const resolveOriginState = (
+  webRequest: Request,
+  trustedOrigins: ReadonlySet<string>,
+): {
+  origin: string | null;
+  originIsTrusted: boolean;
+  normalizedOrigin: string | undefined;
+} => {
+  const origin = webRequest.headers.get("origin");
+  const normalizedOrigin = origin ? normalizeOrigin(origin) : undefined;
+
+  return {
+    normalizedOrigin,
+    origin,
+    originIsTrusted: normalizedOrigin ? trustedOrigins.has(normalizedOrigin) : false,
+  };
+};
+
+const makePreflightResponse = (
+  webRequest: Request,
+  originIsTrusted: boolean,
+  normalizedOrigin?: string,
+) => {
+  if (webRequest.method.toUpperCase() !== "OPTIONS" || !normalizedOrigin) {
+    return;
+  }
+
+  if (!originIsTrusted) {
+    return forbiddenOriginResponse();
+  }
+
+  return HttpServerResponse.empty({ status: 204 }).pipe(
+    HttpServerResponse.setHeaders(
+      makeCorsHeaders(normalizedOrigin, webRequest.headers.get("access-control-request-headers")),
+    ),
+  );
+};
+
+const withCorsHeaders = (
+  serverResponse: HttpServerResponse.HttpServerResponse,
+  webRequest: Request,
+  originIsTrusted: boolean,
+  normalizedOrigin?: string,
+) => {
+  if (!normalizedOrigin || !originIsTrusted) {
+    return serverResponse;
+  }
+
+  return serverResponse.pipe(
+    HttpServerResponse.setHeaders(
+      makeCorsHeaders(normalizedOrigin, webRequest.headers.get("access-control-request-headers")),
+    ),
+  );
+};
+
+const runAuthProxyRequest = (
+  request: HttpServerRequest.HttpServerRequest,
+  webHandler: (request: Request) => Promise<Response>,
+  trustedOrigins: ReadonlySet<string>,
+) =>
+  Effect.gen(function* runAuthProxyRequestEffect() {
+    const webRequest = yield* HttpServerRequest.toWeb(request);
+    const { origin, originIsTrusted, normalizedOrigin } = resolveOriginState(
+      webRequest,
+      trustedOrigins,
+    );
+    const preflightResponse = makePreflightResponse(webRequest, originIsTrusted, normalizedOrigin);
+
+    if (preflightResponse) {
+      return preflightResponse;
+    }
+
+    if (isMutationMethod(webRequest.method) && origin && !originIsTrusted) {
+      return forbiddenOriginResponse();
+    }
+
+    const webResponse = yield* Effect.tryPromise({
+      catch: toAuthError,
+      try: () => webHandler(webRequest),
+    });
+    const serverResponse = HttpServerResponse.fromWeb(webResponse);
+
+    return withCorsHeaders(serverResponse, webRequest, originIsTrusted, normalizedOrigin);
+  });
+
 const makeAuthProxyHandler =
   (webHandler: (request: Request) => Promise<Response>, trustedOrigins: ReadonlySet<string>) =>
   (request: HttpServerRequest.HttpServerRequest) =>
     Effect.gen(function* authProxyHandlerEffect() {
       try {
-        const webRequest = yield* HttpServerRequest.toWeb(request);
-        const origin = webRequest.headers.get("origin");
-
-        if (isMutationMethod(webRequest.method) && origin) {
-          const normalizedOrigin = (() => {
-            try {
-              return new URL(origin).origin;
-            } catch {
-              return origin;
-            }
-          })();
-
-          if (!trustedOrigins.has(normalizedOrigin)) {
-            return HttpServerResponse.unsafeJson(
-              {
-                error: "forbidden_origin",
-                message: "Origin is not trusted",
-              },
-              {
-                status: 403,
-              },
-            );
-          }
-        }
-
-        const webResponse = yield* Effect.tryPromise({
-          catch: toAuthError,
-          try: () => webHandler(webRequest),
-        });
-        return HttpServerResponse.fromWeb(webResponse);
+        return yield* runAuthProxyRequest(request, webHandler, trustedOrigins);
       } catch (error) {
-        return HttpServerResponse.unsafeJson(
-          {
-            error: "auth_proxy_failed",
-            message: String(error),
-          },
-          {
-            status: 500,
-          },
-        );
+        return authProxyFailedResponse(error);
       }
     });
 
