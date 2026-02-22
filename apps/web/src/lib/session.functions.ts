@@ -7,7 +7,7 @@ const getAuthBaseUrl = () =>
   process.env.AUTH_URL ||
   process.env.VITE_AUTH_URL ||
   import.meta.env.VITE_AUTH_URL ||
-  "http://auth.localtest.me:3003";
+  "http://auth.tsker.localhost:1355";
 
 export interface ProtectedSessionResponse {
   authenticated: boolean;

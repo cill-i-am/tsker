@@ -1,4 +1,4 @@
-const authBaseUrl = import.meta.env.VITE_AUTH_URL ?? "http://auth.localtest.me:3003";
+const authBaseUrl = import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355";
 
 const postAuth = async (path: string, body: Record<string, unknown>) => {
   const response = await fetch(`${authBaseUrl}${path}`, {

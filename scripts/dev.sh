@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORTLESS_BIN="$ROOT_DIR/node_modules/.bin/portless"
+
+required_vars=(
+  APP_ENV
+  AUTH_COOKIE_DOMAIN
+  AUTH_TRUSTED_ORIGINS
+  AUTH_URL
+  BETTER_AUTH_SECRET
+  BETTER_AUTH_URL
+  DATABASE_URL
+  LOG_LEVEL
+  VITE_API_URL
+  VITE_AUTH_URL
+)
+
+load_env_file() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$file"
+    set +a
+  fi
+}
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker is required for local development."
   echo "Install Docker Desktop (or equivalent) and retry."
@@ -12,6 +38,56 @@ if ! docker compose version >/dev/null 2>&1; then
   echo "Install Docker Compose v2 and retry."
   exit 1
 fi
+
+os_name="$(uname -s 2>/dev/null || echo unknown)"
+case "$os_name" in
+Darwin | Linux)
+  portless_supported_os=true
+  ;;
+*)
+  portless_supported_os=false
+  ;;
+esac
+
+if [[ ! -x "$PORTLESS_BIN" ]]; then
+  echo "Portless is required for local development."
+  if [[ "$portless_supported_os" == false ]]; then
+    echo "Unsupported operating system: ${os_name}"
+    echo "Use macOS, Linux, or WSL2 on Windows to run this workflow."
+  else
+    echo "Install workspace dependencies with: pnpm install"
+  fi
+  exit 1
+fi
+
+if ! "$PORTLESS_BIN" --version >/dev/null 2>&1; then
+  echo "Portless is required for local development."
+  echo "Install workspace dependencies with: pnpm install"
+  exit 1
+fi
+
+declare -A shell_env_overrides=()
+for required_var in "${required_vars[@]}"; do
+  if [[ ${!required_var+x} == x ]]; then
+    shell_env_overrides[$required_var]="${!required_var}"
+  fi
+done
+
+load_env_file "$ROOT_DIR/.env.example"
+load_env_file "$ROOT_DIR/.env"
+load_env_file "$ROOT_DIR/.env.local"
+
+for required_var in "${!shell_env_overrides[@]}"; do
+  export "$required_var=${shell_env_overrides[$required_var]}"
+done
+
+for required_var in "${required_vars[@]}"; do
+  if [[ -z "${!required_var:-}" ]]; then
+    echo "Missing required environment variable: ${required_var}"
+    echo "Set it in .env.local (or .env) and retry."
+    exit 1
+  fi
+done
 
 echo "Starting local Postgres via Docker..."
 docker compose up -d postgres
@@ -29,19 +105,6 @@ if ! docker compose exec -T postgres pg_isready -U postgres -d tsker >/dev/null 
   docker compose logs postgres
   exit 1
 fi
-
-export DATABASE_URL="${DATABASE_URL:-postgres://postgres:postgres@localhost:5432/tsker}"
-export PORT="${PORT:-3002}"
-export AUTH_PORT="${AUTH_PORT:-3003}"
-export APP_ENV="${APP_ENV:-local}"
-export LOG_LEVEL="${LOG_LEVEL:-info}"
-export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-local-dev-secret-local-dev-secret-12345}"
-export BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://auth.localtest.me:3003}"
-export AUTH_TRUSTED_ORIGINS="${AUTH_TRUSTED_ORIGINS:-http://app.localtest.me:3000}"
-export AUTH_COOKIE_DOMAIN="${AUTH_COOKIE_DOMAIN:-.localtest.me}"
-export VITE_API_URL="${VITE_API_URL:-http://api.localtest.me:3002}"
-export VITE_AUTH_URL="${VITE_AUTH_URL:-http://auth.localtest.me:3003}"
-export AUTH_URL="${AUTH_URL:-http://auth.localtest.me:3003}"
 
 echo "Applying database migrations..."
 pnpm --filter @repo/db drizzle:migrate

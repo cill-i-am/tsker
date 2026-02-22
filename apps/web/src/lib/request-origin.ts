@@ -17,6 +17,7 @@ const isLocalHttpHost = (host: string) => {
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname === "::1" ||
+    hostname.endsWith(".localhost") ||
     hostname === "localtest.me" ||
     hostname.endsWith(".localtest.me")
   );
