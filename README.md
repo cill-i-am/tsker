@@ -54,6 +54,8 @@ Set `PORTLESS=0` to bypass `portless` and run direct dev commands.
 
 For Playwright e2e, URL targets are controlled separately via `E2E_WEB_URL` and
 `E2E_API_URL` (CI defaults use `*.localtest.me`).
+If auth is split into a separate service, set `E2E_AUTH_URL` and `VITE_AUTH_URL`
+to route web auth requests independently from core API requests.
 
 ## Database environments
 

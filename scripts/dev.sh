@@ -38,6 +38,7 @@ export BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://api.localhost:1355}"
 export AUTH_TRUSTED_ORIGINS="${AUTH_TRUSTED_ORIGINS:-http://app.localhost:1355}"
 export AUTH_COOKIE_DOMAIN="${AUTH_COOKIE_DOMAIN:-localhost}"
 export VITE_API_URL="${VITE_API_URL:-http://api.localhost:1355}"
+export VITE_AUTH_URL="${VITE_AUTH_URL:-$BETTER_AUTH_URL}"
 
 echo "Applying database migrations..."
 pnpm --filter @repo/db drizzle:migrate

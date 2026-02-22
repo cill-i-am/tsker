@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 const webUrl = process.env.E2E_WEB_URL ?? "http://app.localtest.me:3000";
 const apiUrl = process.env.E2E_API_URL ?? "http://api.localtest.me:3002";
+const authUrl = process.env.E2E_AUTH_URL ?? apiUrl;
 
 export default defineConfig({
   fullyParallel: false,
@@ -29,7 +30,7 @@ export default defineConfig({
         AUTH_TRUSTED_ORIGINS: process.env.AUTH_TRUSTED_ORIGINS ?? webUrl,
         BETTER_AUTH_SECRET:
           process.env.BETTER_AUTH_SECRET ?? "test-secret-test-secret-test-secret!",
-        BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? apiUrl,
+        BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? authUrl,
         DATABASE_URL:
           process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/tsker",
         PORT: process.env.PORT ?? "3002",
@@ -42,6 +43,7 @@ export default defineConfig({
       command: "pnpm run e2e:start:web",
       env: {
         VITE_API_URL: process.env.VITE_API_URL ?? apiUrl,
+        VITE_AUTH_URL: process.env.VITE_AUTH_URL ?? authUrl,
       },
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,

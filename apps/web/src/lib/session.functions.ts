@@ -3,8 +3,12 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 
 import { getForwardedOrigin } from "@/lib/request-origin";
 
-const getApiBaseUrl = () =>
-  process.env.VITE_API_URL || import.meta.env.VITE_API_URL || "http://api.localhost:1355";
+const getAuthBaseUrl = () =>
+  process.env.VITE_AUTH_URL ||
+  process.env.VITE_API_URL ||
+  import.meta.env.VITE_AUTH_URL ||
+  import.meta.env.VITE_API_URL ||
+  "http://api.localhost:1355";
 
 export interface ProtectedSessionResponse {
   authenticated: boolean;
@@ -23,7 +27,7 @@ export const fetchProtectedSession = createServerFn({ method: "GET" }).handler(a
     requestHeaders.origin = origin;
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/api/auth/get-session`, {
+  const response = await fetch(`${getAuthBaseUrl()}/api/auth/get-session`, {
     credentials: "include",
     headers: requestHeaders,
   });
