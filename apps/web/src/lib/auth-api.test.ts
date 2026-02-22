@@ -1,5 +1,7 @@
 import { signInEmail } from "./auth-api";
 
+const expectedAuthBaseUrl = import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355";
+
 const makeFetchMock = () => {
   const fetchMock = vi.fn<typeof fetch>();
   vi.stubGlobal("fetch", fetchMock);
@@ -21,7 +23,7 @@ describe("auth api sign-in", () => {
       await signInEmail(input);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "http://auth.tsker.localhost:1355/api/auth/sign-in/email",
+        `${expectedAuthBaseUrl}/api/auth/sign-in/email`,
         expect.objectContaining({
           body: JSON.stringify(input),
           credentials: "include",
