@@ -5,24 +5,28 @@
   "type": "module",
   "exports": {
     ".": {
+      "development": "./src/auth-client.ts",
       "types": "./src/auth-client.ts",
-      "default": "./src/auth-client.ts"
+      "default": "./dist/auth-client.js"
     },
     "./auth-client": {
+      "development": "./src/auth-client.ts",
       "types": "./src/auth-client.ts",
-      "default": "./src/auth-client.ts"
+      "default": "./dist/auth-client.js"
     },
     "./effect": {
+      "development": "./src/effect.ts",
       "types": "./src/effect.ts",
-      "default": "./src/effect.ts"
+      "default": "./dist/effect.js"
     },
     "./schema": {
+      "development": "./src/schema.ts",
       "types": "./src/schema.ts",
-      "default": "./src/schema.ts"
+      "default": "./dist/schema.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsdown",
     "type-check": "tsc --noEmit",
     "check-types": "pnpm run type-check",
     "lint": "ultracite check src",
@@ -42,6 +46,7 @@
     "@types/node": "^22.15.3",
     "@types/pg": "^8.15.6",
     "drizzle-kit": "^0.31.9",
+    "tsdown": "^0.15.5",
     "typescript": "^5.9.3"
   }
 }

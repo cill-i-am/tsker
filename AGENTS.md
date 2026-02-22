@@ -105,3 +105,4 @@ pnpm exec ultracite doctor
 - Keep React markup semantic and accessible.
 - Remove debug artifacts (`console.log`, `debugger`) from production paths.
 - Trust formatter-driven ordering for imports and Tailwind classes.
+- Buildable workspace packages under `packages/*` should use `tsdown` for bundling.
