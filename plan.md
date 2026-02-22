@@ -2,14 +2,14 @@
 
 ## Stage Gates
 - [x] Gate 0: Orchestration setup (integration branch, worktrees, control plane)
-- [ ] Gate 1: Shared contracts + route/auth config skeleton
-- [ ] Gate 2: Organization DB schema + migration baseline
+- [x] Gate 1: Shared contracts + route/auth config skeleton
+- [x] Gate 2: Organization DB schema + migration baseline
 
 ## Lanes
-- [ ] lane-auth-client-web
-- [ ] lane-auth-ui-web
-- [ ] lane-auth-server-hardening
-- [ ] lane-org-db
+- [x] lane-auth-client-web
+- [x] lane-auth-ui-web
+- [x] lane-auth-server-hardening
+- [x] lane-org-db
 - [ ] lane-org-server
 - [ ] lane-org-web
 - [ ] lane-test-hardening
@@ -77,11 +77,28 @@
 
 ## Verification Log
 - [x] Worktree creation and branch wiring completed.
-- [ ] Gate 1 verification
-- [ ] Gate 2 verification
-- [ ] Wave A verification
+- [x] Gate 1 verification
+- [x] Gate 2 verification
+- [ ] Wave A verification (integration run pending)
 - [ ] Wave B verification
 - [ ] Final integration verification
+
+### Lane Execution Log
+- [x] lane-auth-server-hardening merged via `843939e`
+  - branch commit: `5c8e88d969731d0f2a186d27ec2b1a158acce65d`
+  - checks: `pnpm --filter auth test` (pass), `pnpm --filter auth type-check` (pass)
+- [x] lane-auth-ui-web merged via `444c3f6`
+  - branch commit: `752c7788c004605fcc8e9232620c71b2a1776f89`
+  - checks: `pnpm --filter web test` (pass), `pnpm --filter web type-check` (pass)
+- [x] lane-auth-client-web merged via `45f3365`
+  - branch commit: `d5bf369`
+  - checks: `pnpm --filter web test` (pass), `pnpm --filter web type-check` (pass)
+- [x] lane-org-db merged via `6000201`
+  - branch commit: `c5eef82`
+  - checks: `pnpm --filter @repo/db build` (pass), `pnpm --filter @repo/db type-check` (pass)
+- [ ] lane-org-server in progress (`codex/lane-org-server`)
+- [ ] lane-org-web in progress (`codex/lane-org-web`)
+- [ ] lane-test-hardening queued
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening
