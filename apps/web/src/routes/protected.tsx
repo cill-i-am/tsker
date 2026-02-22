@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect, useLoaderData } from "@tanstack/react-router";
+import { Link, createFileRoute, useLoaderData } from "@tanstack/react-router";
 
 import { sessionQueryOptions } from "@/lib/session-query";
 
@@ -37,15 +37,6 @@ const ProtectedPage = () => {
 };
 
 export const Route = createFileRoute("/protected")({
-  beforeLoad: async ({ context }) => {
-    const sessionData = await context.queryClient.ensureQueryData(sessionQueryOptions());
-
-    if (!sessionData.authenticated) {
-      throw redirect({
-        to: "/",
-      });
-    }
-  },
   component: ProtectedPage,
   loader: ({ context }) => context.queryClient.ensureQueryData(sessionQueryOptions()),
 });
