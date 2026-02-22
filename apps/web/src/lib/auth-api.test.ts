@@ -42,11 +42,6 @@ import {
   signUpEmail,
   type AuthMutationResult,
 } from "./auth-client";
-import {
-  signInEmail as signInEmailCompatibility,
-  signOut as signOutCompatibility,
-  signUpEmail as signUpEmailCompatibility,
-} from "./auth-api";
 
 describe("auth-client auth actions", () => {
   const organizationActionClient = authClient as typeof authClient & {
@@ -186,13 +181,5 @@ describe("auth-client auth actions", () => {
 
     expect(useListOrganizationsRequestMock).toHaveBeenCalledTimes(1);
     expect(useActiveOrganizationRequestMock).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("auth-api compatibility layer", () => {
-  it("re-exports auth actions from auth-client", () => {
-    expect(signInEmailCompatibility).toBe(signInEmail);
-    expect(signUpEmailCompatibility).toBe(signUpEmail);
-    expect(signOutCompatibility).toBe(signOut);
   });
 });

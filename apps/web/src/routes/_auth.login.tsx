@@ -7,7 +7,7 @@ import { type AuthStatusState, AuthStatus } from "@/components/auth/auth-status"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signInEmail } from "@/lib/auth-api";
+import { signInEmail } from "@/lib/auth-client";
 import { sessionQueryOptions } from "@/lib/session-query";
 
 const getErrorMessage = (payload: unknown): string => {
