@@ -1,10 +1,12 @@
 import { createAuthClient } from "better-auth/react";
+import { organizationClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355",
   fetchOptions: {
     credentials: "include",
   },
+  plugins: [organizationClient()],
 });
 
 export interface AuthMutationResult {
