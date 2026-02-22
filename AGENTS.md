@@ -9,6 +9,7 @@ This file is intentionally specific to the current codebase and should be treate
 - Deliver safe, minimal, high-signal changes in this monorepo.
 - Keep changes local to the app/package you touch. Do not refactor unrelated projects unless required.
 - Prefer explicit behavior and straightforward code over abstraction.
+- This is a greenfield application: prefer direct refactors and breaking changes over backward-compatibility shims unless explicitly requested.
 
 ## 2. Repo Snapshot (Current Reality)
 
