@@ -11,7 +11,7 @@
 - [x] lane-auth-server-hardening
 - [x] lane-org-db
 - [x] lane-org-server
-- [ ] lane-org-web
+- [x] lane-org-web
 - [ ] lane-test-hardening
 
 ## File Ownership Locks
@@ -99,7 +99,9 @@
 - [x] lane-org-server merged via `6da804d`
   - branch commit: `b6bdfb01794dc08d3256e6dc751fd6b534bf9d11`
   - checks: `pnpm --filter auth test` (pass), `pnpm --filter auth type-check` (pass)
-- [ ] lane-org-web in progress (`codex/lane-org-web`)
+- [x] lane-org-web merged via `19ec5d5`
+  - branch commit: `8087c2c1c2dd5901790bea99fe9a7a7a26ba61cd`
+  - checks: `pnpm --filter web test` (pass), `pnpm --filter web type-check` (pass)
 - [ ] lane-test-hardening queued
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
