@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { signInEmail, signOut, signUpEmail } from "@/lib/auth-api";
-import { authClient } from "@/lib/auth-client";
+import { authClient, signInEmail, signOut, signUpEmail } from "@/lib/auth-client";
 
 export const HomePage = () => {
   const session = authClient.useSession();

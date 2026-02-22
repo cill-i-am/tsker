@@ -1,92 +1,112 @@
-import { signInEmail } from "./auth-api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const expectedAuthBaseUrl = import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355";
+const { signInEmailRequestMock, signOutRequestMock, signUpEmailRequestMock } = vi.hoisted(() => ({
+  signInEmailRequestMock: vi.fn(),
+  signOutRequestMock: vi.fn(),
+  signUpEmailRequestMock: vi.fn(),
+}));
 
-const makeFetchMock = () => {
-  const fetchMock = vi.fn<typeof fetch>();
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-};
+vi.mock("better-auth/react", () => ({
+  createAuthClient: vi.fn(() => ({
+    signIn: {
+      email: signInEmailRequestMock,
+    },
+    signOut: signOutRequestMock,
+    signUp: {
+      email: signUpEmailRequestMock,
+    },
+    useSession: vi.fn(),
+  })),
+}));
 
-const resetFetchMock = () => {
-  vi.unstubAllGlobals();
-  vi.clearAllMocks();
-};
+import {
+  signInEmail,
+  signOut,
+  signUpEmail,
+  type AuthMutationResult,
+} from "./auth-client";
+import {
+  signInEmail as signInEmailCompatibility,
+  signOut as signOutCompatibility,
+  signUpEmail as signUpEmailCompatibility,
+} from "./auth-api";
 
-describe("auth api sign-in", () => {
-  it("sends a POST request with JSON body and credentials include", async () => {
-    const fetchMock = makeFetchMock();
-    const input = { email: "user@example.com", password: "password123!" };
-    fetchMock.mockResolvedValueOnce(Response.json({ token: "ok" }, { status: 200 }));
-
-    try {
-      await signInEmail(input);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${expectedAuthBaseUrl}/api/auth/sign-in/email`,
-        expect.objectContaining({
-          body: JSON.stringify(input),
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          method: "POST",
-        }),
-      );
-    } finally {
-      resetFetchMock();
-    }
+describe("auth-client auth actions", () => {
+  beforeEach(() => {
+    signUpEmailRequestMock.mockReset();
+    signInEmailRequestMock.mockReset();
+    signOutRequestMock.mockReset();
   });
 
-  it("returns body null when response is not JSON", async () => {
-    const fetchMock = makeFetchMock();
-    fetchMock.mockResolvedValueOnce(
-      new Response("plain-text-error", {
-        headers: { "content-type": "text/plain" },
-        status: 500,
-      }),
-    );
-
-    try {
-      const result = await signInEmail({
+  it("maps successful sign-in to a 2xx-compatible result", async () => {
+    signInEmailRequestMock.mockResolvedValueOnce({
+      data: {
         email: "user@example.com",
-        password: "password123!",
-      });
+      },
+      error: null,
+    });
 
-      expect(result).toStrictEqual({
-        body: null,
-        status: 500,
-      });
-    } finally {
-      resetFetchMock();
-    }
+    const result = await signInEmail({
+      email: "user@example.com",
+      password: "password123!",
+    });
+
+    expect(signInEmailRequestMock).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "password123!",
+    });
+    expect(result).toStrictEqual<AuthMutationResult>({
+      body: {
+        email: "user@example.com",
+      },
+      status: 200,
+    });
   });
 
-  it("preserves 4xx status and parsed payload for caller handling", async () => {
-    const fetchMock = makeFetchMock();
-    fetchMock.mockResolvedValueOnce(
-      Response.json(
-        {
-          code: "INVALID_CREDENTIALS",
-          message: "Invalid email or password",
-        },
-        { status: 401 },
-      ),
-    );
+  it("maps Better Auth error responses to status/body", async () => {
+    signUpEmailRequestMock.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "Email already in use",
+        status: 409,
+      },
+    });
 
-    try {
-      const result = await signInEmail({
-        email: "user@example.com",
-        password: "wrong-password",
-      });
+    const result = await signUpEmail({
+      email: "user@example.com",
+      name: "Local User",
+      password: "password123!",
+    });
 
-      expect(result).toStrictEqual({
-        body: {
-          code: "INVALID_CREDENTIALS",
-          message: "Invalid email or password",
-        },
-        status: 401,
-      });
-    } finally {
-      resetFetchMock();
-    }
+    expect(result).toStrictEqual<AuthMutationResult>({
+      body: {
+        message: "Email already in use",
+        status: 409,
+      },
+      status: 409,
+    });
+  });
+
+  it("maps sign-out responses", async () => {
+    signOutRequestMock.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    const result = await signOut();
+
+    expect(signOutRequestMock).toHaveBeenCalledTimes(1);
+    expect(result).toStrictEqual<AuthMutationResult>({
+      body: null,
+      status: 200,
+    });
+  });
+});
+
+describe("auth-api compatibility layer", () => {
+  it("re-exports auth actions from auth-client", () => {
+    expect(signInEmailCompatibility).toBe(signInEmail);
+    expect(signUpEmailCompatibility).toBe(signUpEmail);
+    expect(signOutCompatibility).toBe(signOut);
   });
 });
