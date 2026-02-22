@@ -24,6 +24,7 @@ export const user = pgTable(
 export const session = pgTable(
   "session",
   {
+    activeOrganizationId: text("active_organization_id"),
     createdAt,
     expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
     id: text("id").primaryKey(),
@@ -36,6 +37,7 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
+    index("session_active_organization_id_idx").on(table.activeOrganizationId),
     uniqueIndex("session_token_unique").on(table.token),
     index("session_user_id_idx").on(table.userId),
   ],
@@ -85,8 +87,69 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+export const organization = pgTable(
+  "organization",
+  {
+    createdAt,
+    id: text("id").primaryKey(),
+    logo: text("logo"),
+    metadata: text("metadata"),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    updatedAt,
+  },
+  (table) => [uniqueIndex("organization_slug_unique").on(table.slug)],
+);
+
+export const member = pgTable(
+  "member",
+  {
+    createdAt,
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    uniqueIndex("member_organization_user_unique").on(table.organizationId, table.userId),
+    index("member_organization_id_idx").on(table.organizationId),
+    index("member_user_id_idx").on(table.userId),
+  ],
+);
+
+export const invitation = pgTable(
+  "invitation",
+  {
+    createdAt,
+    email: text("email").notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    id: text("id").primaryKey(),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    status: text("status").notNull().default("pending"),
+    updatedAt,
+  },
+  (table) => [
+    index("invitation_email_idx").on(table.email),
+    index("invitation_organization_id_idx").on(table.organizationId),
+    index("invitation_status_idx").on(table.status),
+  ],
+);
+
 export const authSchema = {
   account,
+  invitation,
+  member,
+  organization,
   session,
   user,
   verification,
