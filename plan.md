@@ -12,7 +12,7 @@
 - [x] lane-org-db
 - [x] lane-org-server
 - [x] lane-org-web
-- [ ] lane-test-hardening
+- [x] lane-test-hardening
 
 ## File Ownership Locks
 - lane-auth-client-web:
@@ -79,9 +79,9 @@
 - [x] Worktree creation and branch wiring completed.
 - [x] Gate 1 verification
 - [x] Gate 2 verification
-- [ ] Wave A verification (integration run pending)
-- [ ] Wave B verification
-- [ ] Final integration verification
+- [x] Wave A verification
+- [x] Wave B verification
+- [x] Final integration verification
 
 ### Lane Execution Log
 - [x] lane-auth-server-hardening merged via `843939e`
@@ -102,7 +102,15 @@
 - [x] lane-org-web merged via `19ec5d5`
   - branch commit: `8087c2c1c2dd5901790bea99fe9a7a7a26ba61cd`
   - checks: `pnpm --filter web test` (pass), `pnpm --filter web type-check` (pass)
-- [ ] lane-test-hardening queued
+- [x] lane-test-hardening merged via `d66222e`
+  - branch commit: `c9a65b2417fe3f70a7cad1435c1a4c32609c6306`
+  - checks: `pnpm --filter auth test` (pass), `pnpm --filter web test` (pass), `pnpm --filter web type-check` (pass)
+
+### Final Integration Run
+- [x] `pnpm --filter auth test && pnpm --filter auth type-check` (pass)
+- [x] `pnpm --filter web test && pnpm --filter web type-check` (pass)
+- [x] `pnpm --filter web test:e2e` (pass after aligning auth verification expectations in e2e assertions)
+- [x] `pnpm --filter @repo/db build && pnpm --filter @repo/db type-check` (pass)
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening

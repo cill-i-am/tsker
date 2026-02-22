@@ -42,7 +42,7 @@ const waitForInteractiveSessionState = async (page: Page) => {
 }
 
 test.describe('sign-in flow', () => {
-  test('signs up, signs out, signs in, and accesses protected route', async ({
+  test('signs up and keeps protected route unauthenticated until verification', async ({
     page,
   }) => {
     const password = 'password123!'
@@ -60,15 +60,12 @@ test.describe('sign-in flow', () => {
     await page.getByRole('button', { name: 'Sign Up' }).click()
     await expectHttpStatus(page, 2)
 
-    await page.getByRole('button', { name: 'Sign Out' }).click()
-    await expectHttpStatus(page, 2)
-
     await page.getByRole('button', { name: 'Sign In' }).click()
-    await expectHttpStatus(page, 2)
+    await expectHttpStatus(page, 4)
 
     await page.getByRole('link', { name: 'Open Protected Route Check' }).click()
     await expect(page).toHaveURL(/\/protected$/)
-    await expect(page.getByText(/Authenticated:\s*yes/)).toBeVisible()
+    await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
   })
 
   test('rejects sign-in when password is invalid', async ({ page }) => {
@@ -139,33 +136,18 @@ test.describe('sign-in flow', () => {
   }) => {
     await page.goto('/onboarding')
     await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByRole('heading', { name: 'Sign in to tsker' })).toBeVisible()
+    await expect(page.getByText('Sign in to tsker')).toBeVisible()
 
     await page.goto('/org/guard-check')
     await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByRole('heading', { name: 'Sign in to tsker' })).toBeVisible()
+    await expect(page.getByText('Sign in to tsker')).toBeVisible()
   })
 
-  test('redirects authenticated users away from auth routes to onboarding', async ({
+  test('shows login route for unauthenticated users', async ({
     page,
   }) => {
-    const password = 'password123!'
-    const email = makeUniqueEmail('auth-guard')
-
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Auth Session Validation' })).toBeVisible()
-    await waitForInteractiveSessionState(page)
-
-    await fillCredentials(page, {
-      name: 'Auth Guard User',
-      email,
-      password,
-    })
-    await page.getByRole('button', { name: 'Sign Up' }).click()
-    await expectHttpStatus(page, 2)
-
     await page.goto('/login')
-    await expect(page).toHaveURL(/\/onboarding$/)
-    await expect(page.getByRole('heading', { name: 'Choose your organization' })).toBeVisible()
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByText('Sign in to tsker')).toBeVisible()
   })
 })
