@@ -32,13 +32,16 @@ fi
 
 export DATABASE_URL="${DATABASE_URL:-postgres://postgres:postgres@localhost:5432/tsker}"
 export PORT="${PORT:-3002}"
+export AUTH_PORT="${AUTH_PORT:-3003}"
 export APP_ENV="${APP_ENV:-local}"
 export LOG_LEVEL="${LOG_LEVEL:-info}"
 export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-local-dev-secret-local-dev-secret-12345}"
-export BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://api.localtest.me:3002}"
+export BETTER_AUTH_URL="${BETTER_AUTH_URL:-http://auth.localtest.me:3003}"
 export AUTH_TRUSTED_ORIGINS="${AUTH_TRUSTED_ORIGINS:-http://app.localtest.me:3000}"
 export AUTH_COOKIE_DOMAIN="${AUTH_COOKIE_DOMAIN:-.localtest.me}"
 export VITE_API_URL="${VITE_API_URL:-http://api.localtest.me:3002}"
+export VITE_AUTH_URL="${VITE_AUTH_URL:-http://auth.localtest.me:3003}"
+export AUTH_URL="${AUTH_URL:-http://auth.localtest.me:3003}"
 
 echo "Applying database migrations..."
 pnpm --filter @repo/db drizzle:migrate

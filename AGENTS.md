@@ -13,7 +13,7 @@ This file is intentionally specific to the current codebase and should be treate
 ## 2. Repo Snapshot (Current Reality)
 
 - Monorepo: Turborepo + pnpm workspaces.
-- Root apps: `apps/api`, `apps/web`.
+- Root apps: `apps/api`, `apps/auth`, `apps/web`.
 - Shared packages: `packages/db`, `packages/typescript-config`.
 
 ## 3. Instruction Hierarchy
@@ -21,6 +21,7 @@ This file is intentionally specific to the current codebase and should be treate
 - Start with this root file for cross-repo conventions.
 - Then read the closest app/package `AGENTS.md` before making scoped changes.
 - API-specific rules live in `apps/api/AGENTS.md`.
+- Auth-specific rules live in `apps/auth/AGENTS.md`.
 
 ## 4. Commands That Work
 
@@ -62,6 +63,14 @@ Example for API:
 pnpm --filter api test
 pnpm --filter api type-check
 pnpm --filter api build
+```
+
+Example for Auth:
+
+```bash
+pnpm --filter auth test
+pnpm --filter auth type-check
+pnpm --filter auth build
 ```
 
 Example for Web e2e:
