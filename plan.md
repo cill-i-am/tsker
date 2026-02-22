@@ -10,7 +10,7 @@
 - [x] lane-auth-ui-web
 - [x] lane-auth-server-hardening
 - [x] lane-org-db
-- [ ] lane-org-server
+- [x] lane-org-server
 - [ ] lane-org-web
 - [ ] lane-test-hardening
 
@@ -96,7 +96,9 @@
 - [x] lane-org-db merged via `6000201`
   - branch commit: `c5eef82`
   - checks: `pnpm --filter @repo/db build` (pass), `pnpm --filter @repo/db type-check` (pass)
-- [ ] lane-org-server in progress (`codex/lane-org-server`)
+- [x] lane-org-server merged via `6da804d`
+  - branch commit: `b6bdfb01794dc08d3256e6dc751fd6b534bf9d11`
+  - checks: `pnpm --filter auth test` (pass), `pnpm --filter auth type-check` (pass)
 - [ ] lane-org-web in progress (`codex/lane-org-web`)
 - [ ] lane-test-hardening queued
 
