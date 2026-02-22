@@ -133,4 +133,39 @@ test.describe('sign-in flow', () => {
     await expect(page.getByText(/Status:\s*200/)).toBeVisible()
     await expect(page.getByText(/Authenticated:\s*no/)).toBeVisible()
   })
+
+  test('redirects unauthenticated users from guarded onboarding and org routes', async ({
+    page,
+  }) => {
+    await page.goto('/onboarding')
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByRole('heading', { name: 'Sign in to tsker' })).toBeVisible()
+
+    await page.goto('/org/guard-check')
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByRole('heading', { name: 'Sign in to tsker' })).toBeVisible()
+  })
+
+  test('redirects authenticated users away from auth routes to onboarding', async ({
+    page,
+  }) => {
+    const password = 'password123!'
+    const email = makeUniqueEmail('auth-guard')
+
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Auth Session Validation' })).toBeVisible()
+    await waitForInteractiveSessionState(page)
+
+    await fillCredentials(page, {
+      name: 'Auth Guard User',
+      email,
+      password,
+    })
+    await page.getByRole('button', { name: 'Sign Up' }).click()
+    await expectHttpStatus(page, 2)
+
+    await page.goto('/login')
+    await expect(page).toHaveURL(/\/onboarding$/)
+    await expect(page.getByRole('heading', { name: 'Choose your organization' })).toBeVisible()
+  })
 })

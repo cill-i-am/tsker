@@ -400,6 +400,83 @@ describe("auth routes", () => {
     }
   });
 
+  it("mounts organization list endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(handler, "/api/auth/organization/list", "GET");
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization active endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(handler, "/api/auth/organization/active", "GET");
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization set-active endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/organization/set-active",
+        "POST",
+      );
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization list-invitations endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/organization/list-invitations",
+        "GET",
+      );
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization accept-invitation endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/organization/accept-invitation",
+        "POST",
+      );
+
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
   it("rejects CORS preflight for untrusted auth origins", async () => {
     const { handler, dispose } = await createTestServer(baseEnv);
 
