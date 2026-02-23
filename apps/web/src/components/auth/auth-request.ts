@@ -1,6 +1,14 @@
 const authBaseUrl = import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355";
 
-const postAuth = async (path: string, body: Record<string, unknown>) => {
+export interface AuthRequestResult {
+  body: unknown;
+  status: number;
+}
+
+export const postAuthRequest = async (
+  path: string,
+  body: Record<string, unknown>,
+): Promise<AuthRequestResult> => {
   const response = await fetch(`${authBaseUrl}${path}`, {
     body: JSON.stringify(body),
     credentials: "include",
@@ -15,11 +23,3 @@ const postAuth = async (path: string, body: Record<string, unknown>) => {
     status: response.status,
   };
 };
-
-export const signUpEmail = (input: { email: string; password: string; name: string }) =>
-  postAuth("/api/auth/sign-up/email", input);
-
-export const signInEmail = (input: { email: string; password: string }) =>
-  postAuth("/api/auth/sign-in/email", input);
-
-export const signOut = () => postAuth("/api/auth/sign-out", {});

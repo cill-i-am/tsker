@@ -39,12 +39,14 @@ const dbSchemaStatements = [
     "user_id" text not null references "user"("id") on delete cascade,
     "token" text not null,
     "expires_at" timestamptz not null,
+    "active_organization_id" text,
     "ip_address" text,
     "user_agent" text,
     "created_at" timestamptz not null default now(),
     "updated_at" timestamptz not null default now()
   )`,
   `create unique index if not exists "session_token_unique" on "session" ("token")`,
+  `create index if not exists "session_active_organization_id_idx" on "session" ("active_organization_id")`,
   `create index if not exists "session_user_id_idx" on "session" ("user_id")`,
   `create table if not exists "account" (
     "id" text primary key,
@@ -72,6 +74,40 @@ const dbSchemaStatements = [
     "updated_at" timestamptz not null default now()
   )`,
   `create index if not exists "verification_identifier_idx" on "verification" ("identifier")`,
+  `create table if not exists "organization" (
+    "id" text primary key,
+    "name" text not null,
+    "slug" text not null,
+    "logo" text,
+    "metadata" text,
+    "created_at" timestamptz not null default now(),
+    "updated_at" timestamptz not null default now()
+  )`,
+  `create unique index if not exists "organization_slug_unique" on "organization" ("slug")`,
+  `create table if not exists "member" (
+    "id" text primary key,
+    "organization_id" text not null references "organization"("id") on delete cascade,
+    "user_id" text not null references "user"("id") on delete cascade,
+    "role" text not null default 'member',
+    "created_at" timestamptz not null default now()
+  )`,
+  `create unique index if not exists "member_organization_user_unique" on "member" ("organization_id", "user_id")`,
+  `create index if not exists "member_organization_id_idx" on "member" ("organization_id")`,
+  `create index if not exists "member_user_id_idx" on "member" ("user_id")`,
+  `create table if not exists "invitation" (
+    "id" text primary key,
+    "organization_id" text not null references "organization"("id") on delete cascade,
+    "email" text not null,
+    "role" text not null,
+    "status" text not null default 'pending',
+    "expires_at" timestamptz not null,
+    "inviter_id" text not null references "user"("id") on delete cascade,
+    "created_at" timestamptz not null default now(),
+    "updated_at" timestamptz not null default now()
+  )`,
+  `create index if not exists "invitation_email_idx" on "invitation" ("email")`,
+  `create index if not exists "invitation_organization_id_idx" on "invitation" ("organization_id")`,
+  `create index if not exists "invitation_status_idx" on "invitation" ("status")`,
 ];
 
 const setupAuthTables = async () => {
@@ -88,7 +124,18 @@ const setupAuthTables = async () => {
 const clearAuthTables = async () => {
   const pool = createAuthPool(baseEnv.DATABASE_URL);
   try {
-    await pool.query(`truncate table "verification", "account", "session", "user" cascade`);
+    await pool.query(
+      `truncate table "invitation", "member", "organization", "verification", "account", "session", "user" cascade`,
+    );
+  } finally {
+    await pool.end();
+  }
+};
+
+const markEmailAsVerified = async (email: string) => {
+  const pool = createAuthPool(baseEnv.DATABASE_URL);
+  try {
+    await pool.query(`update "user" set "email_verified" = true where "email" = $1`, [email]);
   } finally {
     await pool.end();
   }
@@ -178,6 +225,47 @@ const getSession = (handler: WebHandler, cookieHeader?: string) =>
     }),
   );
 
+const createOrganization = (
+  handler: WebHandler,
+  {
+    cookieHeader,
+    name,
+    origin,
+    slug,
+  }: {
+    cookieHeader: string;
+    name: string;
+    origin: string;
+    slug: string;
+  },
+) =>
+  handler(
+    new Request(`${authBaseUrl}/api/auth/organization/create`, {
+      body: JSON.stringify({
+        name,
+        slug,
+      }),
+      headers: {
+        "content-type": "application/json",
+        cookie: cookieHeader,
+        origin,
+      },
+      method: "POST",
+    }),
+  );
+
+const preflightAuthRoute = (handler: WebHandler, path: string, method: string) =>
+  handler(
+    new Request(`${authBaseUrl}${path}`, {
+      headers: {
+        "access-control-request-headers": "content-type",
+        "access-control-request-method": method,
+        origin: trustedOrigin,
+      },
+      method: "OPTIONS",
+    }),
+  );
+
 const runAuthenticatedSessionFlow = async (
   handler: WebHandler,
   email: string,
@@ -189,7 +277,13 @@ const runAuthenticatedSessionFlow = async (
     origin: trustedOrigin,
     password,
   });
-  const setCookieHeaders = readSetCookieHeaders(signUpResponse);
+  await markEmailAsVerified(email);
+  const signInResponse = await signInEmail(handler, {
+    email,
+    origin: trustedOrigin,
+    password,
+  });
+  const setCookieHeaders = readSetCookieHeaders(signInResponse);
   const cookieHeader = setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; ");
   const authenticatedSessionResponse = await getSession(handler, cookieHeader);
   const authenticatedSessionBody = (await authenticatedSessionResponse.json()) as {
@@ -203,6 +297,7 @@ const runAuthenticatedSessionFlow = async (
     authenticatedSessionBody,
     authenticatedSessionResponse,
     setCookieHeaders,
+    signInResponse,
     signUpResponse,
   };
 };
@@ -217,6 +312,51 @@ const withDbServer = async (run: (handler: WebHandler) => Promise<void>) => {
   } finally {
     await dispose();
   }
+};
+
+const signUpAndExtractCookie = async (
+  handler: WebHandler,
+  user: { email: string; name: string; password: string },
+) => {
+  const signUpResponse = await signUpEmail(handler, {
+    email: user.email,
+    name: user.name,
+    origin: trustedOrigin,
+    password: user.password,
+  });
+  await markEmailAsVerified(user.email);
+  const signInResponse = await signInEmail(handler, {
+    email: user.email,
+    origin: trustedOrigin,
+    password: user.password,
+  });
+  const setCookieHeaders = readSetCookieHeaders(signInResponse);
+
+  return {
+    cookieHeader: setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; "),
+    setCookieHeaders,
+    signInResponse,
+    signUpResponse,
+  };
+};
+
+const createOrganizationWithBody = async (
+  handler: WebHandler,
+  input: { cookieHeader: string; slug: string },
+) => {
+  const createOrganizationResponse = await createOrganization(handler, {
+    cookieHeader: input.cookieHeader,
+    name: "Organization Flow Org",
+    origin: trustedOrigin,
+    slug: input.slug,
+  });
+  const body = (await createOrganizationResponse.json().catch(() => null)) as {
+    id?: string;
+    name?: string;
+    slug?: string;
+  } | null;
+
+  return { body, createOrganizationResponse };
 };
 
 describe("up endpoint", () => {
@@ -261,20 +401,134 @@ describe("auth routes", () => {
     const { handler, dispose } = await createTestServer(baseEnv);
 
     try {
-      const response = await handler(
-        new Request(`${authBaseUrl}/api/auth/sign-in/email`, {
-          headers: {
-            "access-control-request-headers": "content-type",
-            "access-control-request-method": "POST",
-            origin: trustedOrigin,
-          },
-          method: "OPTIONS",
-        }),
-      );
+      const response = await preflightAuthRoute(handler, "/api/auth/sign-in/email", "POST");
 
       expect(response.status).toBe(204);
       expect(response.headers.get("access-control-allow-origin")).toBe(trustedOrigin);
       expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts password reset endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/request-password-reset",
+        "POST",
+      );
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts verification endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/send-verification-email",
+        "POST",
+      );
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization create endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await handler(
+        new Request(`${authBaseUrl}/api/auth/organization/create`, {
+          body: JSON.stringify({
+            name: "Mount Check Organization",
+            slug: `mount-check-${Date.now()}`,
+          }),
+          headers: {
+            "content-type": "application/json",
+            origin: trustedOrigin,
+          },
+          method: "POST",
+        }),
+      );
+
+      expect(response.status).not.toBe(404);
+    } finally {
+      await dispose();
+    }
+  });
+});
+
+describe("auth organization routes", () => {
+  it("mounts organization list endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(handler, "/api/auth/organization/list", "GET");
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization active endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(handler, "/api/auth/organization/active", "GET");
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization set-active endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/organization/set-active",
+        "POST",
+      );
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization list-invitations endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/organization/list-invitations",
+        "GET",
+      );
+      expect(response.status).toBe(204);
+    } finally {
+      await dispose();
+    }
+  });
+
+  it("mounts organization accept-invitation endpoint", async () => {
+    const { handler, dispose } = await createTestServer(baseEnv);
+
+    try {
+      const response = await preflightAuthRoute(
+        handler,
+        "/api/auth/organization/accept-invitation",
+        "POST",
+      );
+      expect(response.status).toBe(204);
     } finally {
       await dispose();
     }
@@ -402,12 +656,18 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
       const email = `flow-${Date.now()}@example.com`;
       const flow = await runAuthenticatedSessionFlow(handler, email, "password123!");
       expect(flow.signUpResponse.status).toBeLessThan(400);
+      expect(flow.signInResponse.status).toBeLessThan(400);
       expect(flow.setCookieHeaders.length).toBeGreaterThan(0);
       expect(
         flow.setCookieHeaders.some((cookie) => /domain=\.?localtest\.me/i.test(cookie)),
       ).toBeTruthy();
-      expect(flow.authenticatedSessionResponse.status).toBe(200);
-      expect(flow.authenticatedSessionBody.user?.email).toBe(email);
+      expect({
+        authenticatedEmail: flow.authenticatedSessionBody.user?.email,
+        authenticatedStatus: flow.authenticatedSessionResponse.status,
+      }).toStrictEqual({
+        authenticatedEmail: email,
+        authenticatedStatus: 200,
+      });
     });
   });
 
@@ -419,6 +679,31 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
       } | null;
       expect(unauthenticatedSessionResponse.status).toBe(200);
       expect(getSessionValue(unauthenticatedSessionBody)).toBeNull();
+    });
+  });
+
+  it("creates organizations with trusted origin and authenticated cookie flow", async () => {
+    await withDbServer(async (handler) => {
+      const signUp = await signUpAndExtractCookie(handler, {
+        email: `org-flow-${Date.now()}@example.com`,
+        name: "Organization Flow User",
+        password: "password123!",
+      });
+      const slug = `org-flow-${Date.now()}`;
+      const createdOrganization = await createOrganizationWithBody(handler, {
+        cookieHeader: signUp.cookieHeader,
+        slug,
+      });
+
+      expect(signUp.signUpResponse.status).toBeLessThan(400);
+      expect(signUp.signInResponse.status).toBeLessThan(400);
+      expect(signUp.setCookieHeaders.length).toBeGreaterThan(0);
+      expect(createdOrganization.createOrganizationResponse.status).toBe(200);
+      expect(createdOrganization.body).toMatchObject({
+        id: expect.any(String),
+        name: "Organization Flow Org",
+        slug,
+      });
     });
   });
 });

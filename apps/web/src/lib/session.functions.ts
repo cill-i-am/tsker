@@ -15,7 +15,16 @@ export interface ProtectedSessionResponse {
   status: number;
 }
 
-export const fetchProtectedSession = createServerFn({ method: "GET" }).handler(async () => {
+export interface ActiveOrganizationResponse {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const getAuthRequestHeaders = (): Record<string, string> => {
   const headers = getRequestHeaders();
   const origin = getForwardedOrigin(headers);
   const requestHeaders: Record<string, string> = {
@@ -25,6 +34,35 @@ export const fetchProtectedSession = createServerFn({ method: "GET" }).handler(a
   if (origin) {
     requestHeaders.origin = origin;
   }
+
+  return requestHeaders;
+};
+
+const toActiveOrganizationResponse = (payload: unknown): ActiveOrganizationResponse | null => {
+  const candidate =
+    isRecord(payload) && isRecord(payload.organization) ? payload.organization : payload;
+
+  if (!isRecord(candidate)) {
+    return null;
+  }
+
+  const { id } = candidate;
+  const { name } = candidate;
+  const { slug } = candidate;
+
+  if (typeof id !== "string" || typeof name !== "string" || typeof slug !== "string") {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    slug,
+  };
+};
+
+export const fetchProtectedSession = createServerFn({ method: "GET" }).handler(async () => {
+  const requestHeaders = getAuthRequestHeaders();
 
   const response = await fetch(`${getAuthBaseUrl()}/api/auth/get-session`, {
     credentials: "include",
@@ -41,4 +79,18 @@ export const fetchProtectedSession = createServerFn({ method: "GET" }).handler(a
     payload,
     status: response.status,
   } satisfies ProtectedSessionResponse;
+});
+
+export const fetchActiveOrganization = createServerFn({ method: "GET" }).handler(async () => {
+  const response = await fetch(`${getAuthBaseUrl()}/api/auth/organization/active`, {
+    credentials: "include",
+    headers: getAuthRequestHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => null);
+  return toActiveOrganizationResponse(payload);
 });

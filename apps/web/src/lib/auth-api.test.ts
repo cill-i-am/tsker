@@ -1,92 +1,184 @@
-import { signInEmail } from "./auth-api";
+import { authClient, signInEmail, signOut, signUpEmail } from "./auth-client";
+import type { AuthMutationResult } from "./auth-client";
 
-const expectedAuthBaseUrl = import.meta.env.VITE_AUTH_URL ?? "http://auth.tsker.localhost:1355";
+const {
+  acceptInvitationRequestMock,
+  createOrganizationRequestMock,
+  signInEmailRequestMock,
+  signOutRequestMock,
+  signUpEmailRequestMock,
+  useActiveOrganizationRequestMock,
+  useListOrganizationsRequestMock,
+} = vi.hoisted(() => ({
+  acceptInvitationRequestMock: vi.fn(),
+  createOrganizationRequestMock: vi.fn(),
+  signInEmailRequestMock: vi.fn(),
+  signOutRequestMock: vi.fn(),
+  signUpEmailRequestMock: vi.fn(),
+  useActiveOrganizationRequestMock: vi.fn(),
+  useListOrganizationsRequestMock: vi.fn(),
+}));
 
-const makeFetchMock = () => {
-  const fetchMock = vi.fn<typeof fetch>();
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
+vi.mock<Record<string, unknown>>(import("better-auth/react"), () => ({
+  createAuthClient: vi.fn(() => ({
+    acceptInvitation: acceptInvitationRequestMock,
+    createOrganization: createOrganizationRequestMock,
+    signIn: {
+      email: signInEmailRequestMock,
+    },
+    signOut: signOutRequestMock,
+    signUp: {
+      email: signUpEmailRequestMock,
+    },
+    useActiveOrganization: useActiveOrganizationRequestMock,
+    useListOrganizations: useListOrganizationsRequestMock,
+    useSession: vi.fn(),
+  })),
+}));
+
+const resetMocks = () => {
+  createOrganizationRequestMock.mockReset();
+  acceptInvitationRequestMock.mockReset();
+  signUpEmailRequestMock.mockReset();
+  signInEmailRequestMock.mockReset();
+  signOutRequestMock.mockReset();
+  useListOrganizationsRequestMock.mockReset();
+  useActiveOrganizationRequestMock.mockReset();
 };
 
-const resetFetchMock = () => {
-  vi.unstubAllGlobals();
-  vi.clearAllMocks();
-};
+describe("auth-client auth actions", () => {
+  const organizationActionClient = authClient as typeof authClient & {
+    acceptInvitation: (input: { invitationId: string }) => Promise<unknown>;
+    createOrganization: (input: { name: string; slug: string }) => Promise<unknown>;
+  };
 
-describe("auth api sign-in", () => {
-  it("sends a POST request with JSON body and credentials include", async () => {
-    const fetchMock = makeFetchMock();
-    const input = { email: "user@example.com", password: "password123!" };
-    fetchMock.mockResolvedValueOnce(Response.json({ token: "ok" }, { status: 200 }));
+  it("maps successful sign-in to a 2xx-compatible result", async () => {
+    resetMocks();
+    signInEmailRequestMock.mockResolvedValueOnce({
+      data: {
+        email: "user@example.com",
+      },
+      error: null,
+    });
 
-    try {
-      await signInEmail(input);
+    const result = await signInEmail({
+      email: "user@example.com",
+      password: "password123!",
+    });
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${expectedAuthBaseUrl}/api/auth/sign-in/email`,
-        expect.objectContaining({
-          body: JSON.stringify(input),
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          method: "POST",
-        }),
-      );
-    } finally {
-      resetFetchMock();
-    }
+    expect(signInEmailRequestMock).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "password123!",
+    });
+    expect(result).toStrictEqual<AuthMutationResult>({
+      body: {
+        email: "user@example.com",
+      },
+      status: 200,
+    });
   });
 
-  it("returns body null when response is not JSON", async () => {
-    const fetchMock = makeFetchMock();
-    fetchMock.mockResolvedValueOnce(
-      new Response("plain-text-error", {
-        headers: { "content-type": "text/plain" },
-        status: 500,
-      }),
-    );
+  it("maps Better Auth error responses to status/body", async () => {
+    resetMocks();
+    signUpEmailRequestMock.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "Email already in use",
+        status: 409,
+      },
+    });
 
-    try {
-      const result = await signInEmail({
-        email: "user@example.com",
-        password: "password123!",
-      });
+    const result = await signUpEmail({
+      email: "user@example.com",
+      name: "Local User",
+      password: "password123!",
+    });
 
-      expect(result).toStrictEqual({
-        body: null,
-        status: 500,
-      });
-    } finally {
-      resetFetchMock();
-    }
+    expect(result).toStrictEqual<AuthMutationResult>({
+      body: {
+        message: "Email already in use",
+        status: 409,
+      },
+      status: 409,
+    });
   });
 
-  it("preserves 4xx status and parsed payload for caller handling", async () => {
-    const fetchMock = makeFetchMock();
-    fetchMock.mockResolvedValueOnce(
-      Response.json(
-        {
-          code: "INVALID_CREDENTIALS",
-          message: "Invalid email or password",
-        },
-        { status: 401 },
-      ),
-    );
+  it("maps sign-out responses", async () => {
+    resetMocks();
+    signOutRequestMock.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
 
-    try {
-      const result = await signInEmail({
-        email: "user@example.com",
-        password: "wrong-password",
-      });
+    const result = await signOut();
 
-      expect(result).toStrictEqual({
-        body: {
-          code: "INVALID_CREDENTIALS",
-          message: "Invalid email or password",
-        },
-        status: 401,
-      });
-    } finally {
-      resetFetchMock();
-    }
+    expect(signOutRequestMock).toHaveBeenCalledOnce();
+    expect(result).toStrictEqual<AuthMutationResult>({
+      body: null,
+      status: 200,
+    });
+  });
+
+  it("wires create-organization action input through the auth client", async () => {
+    resetMocks();
+    createOrganizationRequestMock.mockResolvedValueOnce({
+      data: {
+        id: "org_1",
+        name: "Acme",
+        slug: "acme",
+      },
+      error: null,
+    });
+
+    const result = await organizationActionClient.createOrganization({
+      name: "Acme",
+      slug: "acme",
+    });
+
+    expect(createOrganizationRequestMock).toHaveBeenCalledWith({
+      name: "Acme",
+      slug: "acme",
+    });
+    expect(result).toStrictEqual({
+      data: {
+        id: "org_1",
+        name: "Acme",
+        slug: "acme",
+      },
+      error: null,
+    });
+  });
+
+  it("wires accept-invitation action input through the auth client", async () => {
+    resetMocks();
+    acceptInvitationRequestMock.mockResolvedValueOnce({
+      data: {
+        id: "inv_1",
+      },
+      error: null,
+    });
+
+    const result = await organizationActionClient.acceptInvitation({
+      invitationId: "inv_1",
+    });
+
+    expect(acceptInvitationRequestMock).toHaveBeenCalledWith({
+      invitationId: "inv_1",
+    });
+    expect(result).toStrictEqual({
+      data: {
+        id: "inv_1",
+      },
+      error: null,
+    });
+  });
+
+  it("exposes onboarding organization hooks from the auth client", () => {
+    resetMocks();
+    authClient.useListOrganizations();
+    authClient.useActiveOrganization();
+
+    expect(useListOrganizationsRequestMock).toHaveBeenCalledOnce();
+    expect(useActiveOrganizationRequestMock).toHaveBeenCalledOnce();
   });
 });

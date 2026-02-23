@@ -20,6 +20,9 @@ export const AppConfigFromEnv = Config.all({
     "fatal",
   )("LOG_LEVEL").pipe(Config.withDefault("info")),
   PORT: Config.integer("PORT").pipe(Config.withDefault(3003)),
+  RESEND_API_KEY: Config.option(Config.string("RESEND_API_KEY")),
+  RESEND_FROM_EMAIL: Config.option(Config.string("RESEND_FROM_EMAIL")),
+  WEB_BASE_URL: Config.option(Config.string("WEB_BASE_URL")),
 });
 
 export type AppConfigType = Config.Config.Success<typeof AppConfigFromEnv>;
