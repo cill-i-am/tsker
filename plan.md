@@ -126,6 +126,11 @@
 - [x] `pnpm --filter web type-check` (pass)
 - [x] `pnpm lint` (pass)
 
+### CI Auth DB Test Stabilization (Email Verification Aware)
+- [x] Root-cause confirmed from CI logs: `sign-up/email` no longer sets session cookie when email verification is required.
+- [x] Updated auth DB tests to verify user email and then sign in before asserting cookie/session-dependent behavior.
+- [x] `RUN_DB_TESTS=true pnpm --filter auth test` (pass)
+
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening
 2. lane-auth-client-web

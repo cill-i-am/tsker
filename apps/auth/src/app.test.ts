@@ -132,6 +132,15 @@ const clearAuthTables = async () => {
   }
 };
 
+const markEmailAsVerified = async (email: string) => {
+  const pool = createAuthPool(baseEnv.DATABASE_URL);
+  try {
+    await pool.query(`update "user" set "email_verified" = true where "email" = $1`, [email]);
+  } finally {
+    await pool.end();
+  }
+};
+
 const readSetCookieHeaders = (response: Response): string[] => {
   const headersWithSetCookie = response.headers as Headers & {
     getSetCookie?: () => string[];
@@ -268,7 +277,13 @@ const runAuthenticatedSessionFlow = async (
     origin: trustedOrigin,
     password,
   });
-  const setCookieHeaders = readSetCookieHeaders(signUpResponse);
+  await markEmailAsVerified(email);
+  const signInResponse = await signInEmail(handler, {
+    email,
+    origin: trustedOrigin,
+    password,
+  });
+  const setCookieHeaders = readSetCookieHeaders(signInResponse);
   const cookieHeader = setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; ");
   const authenticatedSessionResponse = await getSession(handler, cookieHeader);
   const authenticatedSessionBody = (await authenticatedSessionResponse.json()) as {
@@ -282,6 +297,7 @@ const runAuthenticatedSessionFlow = async (
     authenticatedSessionBody,
     authenticatedSessionResponse,
     setCookieHeaders,
+    signInResponse,
     signUpResponse,
   };
 };
@@ -308,11 +324,18 @@ const signUpAndExtractCookie = async (
     origin: trustedOrigin,
     password: user.password,
   });
-  const setCookieHeaders = readSetCookieHeaders(signUpResponse);
+  await markEmailAsVerified(user.email);
+  const signInResponse = await signInEmail(handler, {
+    email: user.email,
+    origin: trustedOrigin,
+    password: user.password,
+  });
+  const setCookieHeaders = readSetCookieHeaders(signInResponse);
 
   return {
     cookieHeader: setCookieHeaders.map((cookie) => cookie.split(";")[0]).join("; "),
     setCookieHeaders,
+    signInResponse,
     signUpResponse,
   };
 };
@@ -633,12 +656,18 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
       const email = `flow-${Date.now()}@example.com`;
       const flow = await runAuthenticatedSessionFlow(handler, email, "password123!");
       expect(flow.signUpResponse.status).toBeLessThan(400);
+      expect(flow.signInResponse.status).toBeLessThan(400);
       expect(flow.setCookieHeaders.length).toBeGreaterThan(0);
       expect(
         flow.setCookieHeaders.some((cookie) => /domain=\.?localtest\.me/i.test(cookie)),
       ).toBeTruthy();
-      expect(flow.authenticatedSessionResponse.status).toBe(200);
-      expect(flow.authenticatedSessionBody.user?.email).toBe(email);
+      expect({
+        authenticatedEmail: flow.authenticatedSessionBody.user?.email,
+        authenticatedStatus: flow.authenticatedSessionResponse.status,
+      }).toStrictEqual({
+        authenticatedEmail: email,
+        authenticatedStatus: 200,
+      });
     });
   });
 
@@ -667,6 +696,7 @@ describe.skipIf(!runDbTests)("auth db routes", () => {
       });
 
       expect(signUp.signUpResponse.status).toBeLessThan(400);
+      expect(signUp.signInResponse.status).toBeLessThan(400);
       expect(signUp.setCookieHeaders.length).toBeGreaterThan(0);
       expect(createdOrganization.createOrganizationResponse.status).toBe(200);
       expect(createdOrganization.body).toMatchObject({
