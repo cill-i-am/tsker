@@ -133,15 +133,20 @@
 - [x] `RUN_DB_TESTS=true pnpm --filter auth test` (pass)
 
 ### CI Web E2E Stabilization (Sign-In Flow)
-- [x] Root-cause confirmed from CI logs: strict `/login$` assertion failed on `/login?`, and forgot-password status assertion was flaky in CI timing.
+- [x] Root-cause confirmed from CI logs:
+  - strict `/login$` assertion failed on `/login?`
+  - forgot-password status assertion was flaky in CI timing
+  - unknown-user sign-in error banner visibility was flaky after login-route remounts
 - [x] Updated `apps/web/e2e/sign-in-flow.spec.ts`:
   - tolerate `/login` and `/login?query` via regex
   - add resilient forgot-password submit helper with retry/wait
+  - assert unknown-user login remains unauthenticated via guarded-route redirect instead of flaky transient banner text
 - [x] Updated `apps/web/src/routes/_auth.forgot-password.tsx`:
   - show user-safe success status immediately after submit
   - execute reset request in background without exposing account existence
 - [x] `CI=true pnpm --filter web test:e2e` (pass)
 - [x] `CI=true pnpm --filter web exec playwright test e2e/sign-in-flow.spec.ts --repeat-each=12 --workers=1` (pass)
+- [x] `CI=true pnpm --filter web exec playwright test e2e/sign-in-flow.spec.ts -g "rejects sign-in for unknown user" --repeat-each=20 --workers=1` (pass)
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening

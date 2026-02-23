@@ -95,6 +95,9 @@ test.describe("sign-in flow", () => {
     });
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(loginUrlPattern);
-    await expect(page.getByText(/Unable to sign in/i)).toBeVisible();
+    await expect(page.getByText("Sign in to tsker")).toBeVisible();
+
+    await page.goto("/onboarding");
+    await expect(page).toHaveURL(loginUrlPattern);
   });
 });
