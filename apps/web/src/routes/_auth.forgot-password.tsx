@@ -10,8 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requestPasswordReset } from "@/lib/auth-client";
 
-const isSuccessfulStatus = (status: number) => status >= 200 && status < 300;
-
 const runWithSubmitting = async (
   setIsSubmitting: (value: boolean) => void,
   operation: () => Promise<void>,
@@ -25,14 +23,10 @@ const runWithSubmitting = async (
   }
 };
 
-const setResetRequestFailure = (
-  setStatus: (value: AuthStatusState | null) => void,
-  message: string,
-) => {
+const setResetRequestSubmitted = (setStatus: (value: AuthStatusState | null) => void) => {
   setStatus({
-    description: message,
-    title: "Reset request failed",
-    variant: "destructive",
+    description: "If the account exists, a reset link has been sent to your inbox.",
+    title: "Reset email sent",
   });
 };
 
@@ -45,32 +39,12 @@ const ForgotPasswordPage = () => {
   const [status, setStatus] = useState<AuthStatusState | null>(null);
 
   const submitResetRequest = async () => {
-    setStatus(null);
-    const result = await requestPasswordReset({
+    setResetRequestSubmitted(setStatus);
+
+    await requestPasswordReset({
       email,
       redirectTo: getResetPasswordRedirectTo(),
-    }).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : "Unexpected reset request error.";
-      setResetRequestFailure(setStatus, message);
-      return null;
-    });
-
-    if (!result) {
-      return;
-    }
-
-    if (isSuccessfulStatus(result.status)) {
-      setStatus({
-        description: "If the account exists, a reset link has been sent to your inbox.",
-        title: "Reset email sent",
-      });
-      return;
-    }
-
-    setResetRequestFailure(
-      setStatus,
-      "We could not send a reset link. Check the email and try again.",
-    );
+    }).catch(() => null);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

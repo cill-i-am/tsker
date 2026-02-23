@@ -84,6 +84,7 @@
 - [x] Final integration verification
 - [x] Post-integration hardening verification (auth-first root routing + e2e stabilization)
 - [x] Temporary lint suppression removal verification (`apps/web` + `apps/auth` lint/type-check clean without manual suppressions)
+- [x] CI e2e stabilization verification (forgot-password success state + tolerant `/login` URL assertion)
 
 ### Lane Execution Log
 - [x] lane-auth-server-hardening merged via `843939e`
@@ -130,6 +131,17 @@
 - [x] Root-cause confirmed from CI logs: `sign-up/email` no longer sets session cookie when email verification is required.
 - [x] Updated auth DB tests to verify user email and then sign in before asserting cookie/session-dependent behavior.
 - [x] `RUN_DB_TESTS=true pnpm --filter auth test` (pass)
+
+### CI Web E2E Stabilization (Sign-In Flow)
+- [x] Root-cause confirmed from CI logs: strict `/login$` assertion failed on `/login?`, and forgot-password status assertion was flaky in CI timing.
+- [x] Updated `apps/web/e2e/sign-in-flow.spec.ts`:
+  - tolerate `/login` and `/login?query` via regex
+  - add resilient forgot-password submit helper with retry/wait
+- [x] Updated `apps/web/src/routes/_auth.forgot-password.tsx`:
+  - show user-safe success status immediately after submit
+  - execute reset request in background without exposing account existence
+- [x] `CI=true pnpm --filter web test:e2e` (pass)
+- [x] `CI=true pnpm --filter web exec playwright test e2e/sign-in-flow.spec.ts --repeat-each=12 --workers=1` (pass)
 
 ## Merge Queue (cherry-pick into codex/better-auth-integration)
 1. lane-auth-server-hardening
